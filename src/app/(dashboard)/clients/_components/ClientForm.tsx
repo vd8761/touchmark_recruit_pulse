@@ -218,7 +218,7 @@ export function ClientForm({ open, onOpenChange, onSuccess, initialData }: Clien
                 <InputError message={errors.phone?.message} />
               </div>
 
-              <div className="flex flex-col md:col-span-2">
+              <div className="flex flex-col">
                 <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Industry <span className="text-red-600 font-bold">*</span></label>
                 <input placeholder="e.g. Software, Healthcare, Finance" {...register("industry")} className={`w-full h-12 rounded-[12px] border px-4 text-[15px] outline-none transition-all shadow-sm ${errors.industry ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-50/30' : 'border-slate-200/80 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 hover:bg-slate-50'}`} />
                 <InputError message={errors.industry?.message} />

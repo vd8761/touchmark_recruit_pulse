@@ -68,7 +68,7 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{client.company_name}</h1>
             <div className="flex items-center gap-3 mt-1.5 text-sm font-medium text-slate-500">
-              <span className="flex items-center gap-1"><Users className="w-4 h-4" /> {client.client_name}</span>
+              <span className="flex items-center gap-1"><Users className="w-4 h-4" /> {client.contact_person}</span>
               <span>•</span>
               <span>{client.industry}</span>
               <span>•</span>

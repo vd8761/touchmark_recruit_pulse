@@ -20,7 +20,7 @@ export async function GET(req: Request) {
       },
       include: {
         client: {
-          select: { company_name: true, client_name: true }
+          select: { company_name: true, contact_person: true }
         }
       },
       orderBy: { created_at: "desc" },

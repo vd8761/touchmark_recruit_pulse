@@ -56,7 +56,7 @@ type PositionFormValues = z.infer<typeof positionSchema>;
 interface Client {
   id: string;
   company_name: string;
-  client_name: string;
+  contact_person: string;
 }
 
 export function PositionForm({ 
@@ -256,7 +256,7 @@ export function PositionForm({
                         {watch("client_id") && clients.find(c => c.id === watch("client_id"))
                           ? (
                               <span className="font-semibold text-slate-900 truncate">
-                                {clients.find(c => c.id === watch("client_id"))?.company_name} ({clients.find(c => c.id === watch("client_id"))?.client_name})
+                                {clients.find(c => c.id === watch("client_id"))?.company_name} ({clients.find(c => c.id === watch("client_id"))?.contact_person})
                               </span>
                             )
                           : isFetchingClients ? "Loading clients..." : <span className="text-slate-500">Select Client</span>}
@@ -272,7 +272,7 @@ export function PositionForm({
                             {clients.map((c) => (
                               <CommandItem
                                 key={c.id}
-                                value={c.company_name + " " + c.client_name}
+                                value={c.company_name + " " + c.contact_person}
                                 onSelect={() => {
                                   setValue("client_id", c.id, { shouldValidate: true });
                                   setClientComboboxOpen(false);
@@ -285,7 +285,7 @@ export function PositionForm({
                                     watch("client_id") === c.id ? "opacity-100 text-amber-500" : "opacity-0"
                                   )}
                                 />
-                                <span className="truncate">{c.company_name} <span className="text-slate-500 font-normal">({c.client_name})</span></span>
+                                <span className="truncate">{c.company_name} <span className="text-slate-500 font-normal">({c.contact_person})</span></span>
                               </CommandItem>
                             ))}
                           </CommandGroup>

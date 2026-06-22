@@ -12,7 +12,6 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const clientSchema = z.object({
-  client_name: z.string().min(1, "Client name is required"),
   company_name: z.string().min(1, "Company name is required"),
   contact_person: z.string().min(1, "Contact person is required"),
   touchmark_poc: z.string().min(1, "Touchmark POC is required"),
@@ -177,12 +176,6 @@ export function ClientForm({ open, onOpenChange, onSuccess, initialData }: Clien
           {/* Scrollable Body */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-8 space-y-8 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-300">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-7">
-              <div className="flex flex-col">
-                <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Client Name <span className="text-red-600 font-bold">*</span></label>
-                <input placeholder="e.g. Acme Corporation" {...register("client_name")} className={`w-full h-12 rounded-[12px] border px-4 text-[15px] outline-none transition-all shadow-sm ${errors.client_name ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-50/30' : 'border-slate-200/80 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 hover:bg-slate-50'}`} />
-                <InputError message={errors.client_name?.message} />
-              </div>
-
               <div className="flex flex-col">
                 <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Company Name <span className="text-red-600 font-bold">*</span></label>
                 <input placeholder="e.g. Acme Tech Inc." {...register("company_name")} className={`w-full h-12 rounded-[12px] border px-4 text-[15px] outline-none transition-all shadow-sm ${errors.company_name ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-50/30' : 'border-slate-200/80 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 hover:bg-slate-50'}`} />

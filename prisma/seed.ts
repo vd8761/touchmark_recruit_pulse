@@ -45,13 +45,46 @@ async function main() {
     where: { email: adminEmail },
     update: {},
     create: {
-      name: 'Ariyappan (Super Admin)',
+      name: 'Ariyappan',
       email: adminEmail,
       password_hash: hashedPassword,
       role_id: superAdminRole.id,
       status: 'Active'
     },
   })
+
+  // 3. Create Default Settings
+  const settings = [
+    { key: 'currencyCode', value: 'INR' },
+    { key: 'currencySymbol', value: '₹' },
+    { key: 'currencyLocale', value: 'en-IN' },
+  ];
+  for (const s of settings) {
+    await prisma.appSetting.upsert({
+      where: { key: s.key },
+      update: {},
+      create: s,
+    });
+  }
+
+  // 4. Create Master Data (Job Roles & Departments)
+  const jobRoles = ['Software Engineer', 'Project Manager', 'Quality Analyst', 'Graphic Designer', 'Sales Executive', 'Marketing Manager'];
+  for (const role of jobRoles) {
+    await prisma.jobRole.upsert({
+      where: { name: role },
+      update: {},
+      create: { name: role },
+    });
+  }
+
+  const departments = ['Engineering', 'Design', 'Sales', 'Marketing', 'HR', 'Finance'];
+  for (const dept of departments) {
+    await prisma.department.upsert({
+      where: { name: dept },
+      update: {},
+      create: { name: dept },
+    });
+  }
 
   console.log('Database seeding completed successfully!')
   console.log(`Admin User Created: ${admin.email}`)

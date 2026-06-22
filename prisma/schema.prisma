@@ -46,7 +46,6 @@ model User {
 
 model Client {
   id             String    @id @default(uuid())
-  client_name    String
   company_name   String
   contact_person String
   touchmark_poc  String

@@ -11,7 +11,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     const body = await req.json();
-    const { client_name, company_name, contact_person, touchmark_poc, email, country_code, phone, industry, address, notes, status } = body;
+    const { company_name, contact_person, touchmark_poc, email, country_code, phone, industry, address, notes, status } = body;
     const { id } = await params;
 
     const user = await prisma.user.findUnique({
@@ -21,7 +21,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const client = await prisma.client.update({
       where: { id },
       data: {
-        client_name,
         company_name,
         contact_person,
         touchmark_poc,

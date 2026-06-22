@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { client_name, company_name, contact_person, touchmark_poc, email, country_code, phone, industry, address, notes, status } = body;
+    const { company_name, contact_person, touchmark_poc, email, country_code, phone, industry, address, notes, status } = body;
 
     // Get the user to record the creator
     const user = await prisma.user.findUnique({
@@ -43,7 +43,6 @@ export async function POST(req: Request) {
 
     const client = await prisma.client.create({
       data: {
-        client_name,
         company_name,
         contact_person,
         touchmark_poc,
@@ -59,7 +58,7 @@ export async function POST(req: Request) {
     });
 
     // Send email alert asynchronously (no await to avoid blocking response)
-    sendClientCreatedAlert(client_name, company_name, user.name || "System").catch(e => console.error("Email failed:", e));
+    sendClientCreatedAlert(`${company_name} (${contact_person})`, company_name, user.name || "System").catch(e => console.error("Email failed:", e));
 
     return NextResponse.json(client, { status: 201 });
   } catch (error) {

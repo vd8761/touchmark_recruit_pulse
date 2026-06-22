@@ -15,7 +15,7 @@ interface Position {
   client_id: string;
   client: {
     company_name: string;
-    client_name: string;
+    contact_person: string;
   };
   role_name: string;
   department: string;

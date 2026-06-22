@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation";
 
 interface Client {
   id: string;
-  client_name: string;
   company_name: string;
   contact_person: string;
   email: string;
@@ -128,7 +127,7 @@ export function ClientList() {
                   <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-900">{client.company_name}</div>
-                      <div className="text-slate-500 text-[13px]">{client.client_name}</div>
+
                     </td>
                     <td className="px-6 py-4 hidden md:table-cell text-slate-600">
                       {client.industry}

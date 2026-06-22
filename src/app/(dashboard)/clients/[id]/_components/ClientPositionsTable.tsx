@@ -37,7 +37,7 @@ export function ClientPositionsTable({ client }: ClientPositionsTableProps) {
                   <tr 
                     key={pos.id} 
                     className="hover:bg-slate-50 cursor-pointer transition-colors"
-                    onClick={() => setSelectedPosition({ ...pos, client: { company_name: client.company_name, client_name: client.client_name } })}
+                    onClick={() => setSelectedPosition({ ...pos, client: { company_name: client.company_name, contact_person: client.contact_person } })}
                   >
                     <td className="px-6 py-4 font-bold text-slate-900">{pos.role_name}</td>
                     <td className="px-6 py-4 font-medium">{pos.requested_count}</td>

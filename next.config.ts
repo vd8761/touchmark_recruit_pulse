@@ -5,7 +5,6 @@ const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development", // Disable PWA in dev to avoid aggressive caching
   register: true,
-  skipWaiting: true,
 });
 
 const nextConfig: NextConfig = {

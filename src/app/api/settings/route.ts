@@ -21,8 +21,13 @@ export async function GET() {
 export async function PUT(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    if (!session || !session.user || !session.user.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const data = await req.json(); // Expected format: { currencyCode: "USD", currencySymbol: "$" }
@@ -34,12 +39,12 @@ export async function PUT(req: Request) {
         where: { key },
         update: { 
           value,
-          updated_by: session.user.id
+          updated_by: user.id
         },
         create: {
           key,
           value,
-          updated_by: session.user.id
+          updated_by: user.id
         }
       });
     });
@@ -49,6 +54,6 @@ export async function PUT(req: Request) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Failed to update settings:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
   }
 }

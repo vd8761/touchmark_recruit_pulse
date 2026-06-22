@@ -151,7 +151,7 @@ export default function LoginPage() {
               )}
               
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-[13px] font-semibold text-slate-700 ml-0.5">Email Address</Label>
+                <Label htmlFor="email" className="text-[13px] font-semibold text-slate-700 ml-0.5"><span>Email Address <span className="text-red-500">*</span></span></Label>
                 <Input
                   id="email"
                   type="email"
@@ -164,7 +164,7 @@ export default function LoginPage() {
               </div>
               
               <div className="space-y-2 pt-1">
-                <Label htmlFor="password" className="text-[13px] font-semibold text-slate-700 ml-0.5">Password</Label>
+                <Label htmlFor="password" className="text-[13px] font-semibold text-slate-700 ml-0.5"><span>Password <span className="text-red-500">*</span></span></Label>
                 <div className="relative">
                   <Input
                     id="password"

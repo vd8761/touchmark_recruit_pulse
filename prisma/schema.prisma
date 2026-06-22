@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  role_name   String   @unique
+  permissions Json?
+  users       User[]
+
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password_hash String
+  role_id       String
+  role          Role      @relation(fields: [role_id], references: [id])
+  status        String    @default("Active") // Active, Inactive, Locked
+  last_login    DateTime?
+  two_fa_secret String?
+  two_fa_method String    @default("NONE") // NONE, AUTHENTICATOR, EMAIL
+  email_otp     String?
+  email_otp_expiry DateTime?
+  
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  deleted_at    DateTime?
+
+  // Relations
+  clients_created    Client[]          @relation("ClientCreator")
+  clients_updated    Client[]          @relation("ClientUpdater")
+  positions_created  Position[]        @relation("PositionCreator")
+  positions_updated  Position[]        @relation("PositionUpdater")
+  position_closures  PositionClosure[] @relation("ClosureCreator")
+  audit_logs         AuditLog[]        @relation("AuditModifier")
+  settings_updated   AppSetting[]      @relation("SettingUpdater")
+}
+
+model Client {
+  id             String    @id @default(uuid())
+  client_name    String
+  company_name   String
+  contact_person String
+  touchmark_poc  String
+  email          String
+  country_code   String?
+  phone          String
+  address        String?
+  industry       String
+  status         String    @default("Active") // Active, Inactive
+  notes          String?
+
+  created_by     String?
+  creator        User?     @relation("ClientCreator", fields: [created_by], references: [id])
+  updated_by     String?
+  updater        User?     @relation("ClientUpdater", fields: [updated_by], references: [id])
+
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  deleted_at     DateTime?
+
+  positions      Position[]
+}
+
+model Position {
+  id                    String    @id @default(uuid())
+  client_id             String
+  client                Client    @relation(fields: [client_id], references: [id])
+  role_name             String
+  department            String
+  requested_count       Int
+  closed_count          Int       @default(0)
+  per_resource_cost     Decimal
+  billing_slab          String
+  priority              String    // Low, Medium, High, Critical
+  expected_joining_date DateTime
+  status                String    @default("Open") // Open, Partially Closed, Closed, On Hold, Cancelled
+  remarks               String?
+
+  created_by            String?
+  creator               User?     @relation("PositionCreator", fields: [created_by], references: [id])
+  updated_by            String?
+  updater               User?     @relation("PositionUpdater", fields: [updated_by], references: [id])
+
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+  deleted_at            DateTime?
+
+  closures              PositionClosure[]
+}
+
+model PositionClosure {
+  id              String    @id @default(uuid())
+  position_id     String
+  position        Position  @relation(fields: [position_id], references: [id])
+  closed_count    Int
+  closure_date    DateTime
+  closure_details String
+  remarks         String?
+
+  closed_by       String?
+  closer          User?     @relation("ClosureCreator", fields: [closed_by], references: [id])
+
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  entity_type String   // Client, Position, etc.
+  entity_id   String
+  action      String   // Create, Update, Delete
+  old_values  Json?
+  new_values  Json?
+  reason      String?  // Required for updates
+  
+  modified_by String?
+  modifier    User?    @relation("AuditModifier", fields: [modified_by], references: [id])
+  
+  ip_address  String?
+  device_info String?
+  timestamp   DateTime @default(now())
+}
+
+model AppSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  
+  updated_by  String?
+  updater     User?    @relation("SettingUpdater", fields: [updated_by], references: [id])
+  updated_at  DateTime @updatedAt
+}
+
+model JobRole {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  created_at  DateTime @default(now())
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  created_at  DateTime @default(now())
+}

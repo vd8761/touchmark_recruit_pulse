@@ -21,7 +21,7 @@ const clientSchema = z.object({
   industry: z.string().min(1, "Industry is required"),
   address: z.string().optional(),
   notes: z.string().optional(),
-  status: z.string().default("Active"),
+  status: z.string(),
 });
 
 type ClientFormValues = z.infer<typeof clientSchema>;

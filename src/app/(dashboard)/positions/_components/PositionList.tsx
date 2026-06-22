@@ -26,6 +26,7 @@ interface Position {
   priority: string;
   status: string;
   expected_joining_date: string;
+  created_at: string;
   updated_at: string;
 }
 

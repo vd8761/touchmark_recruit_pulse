@@ -386,7 +386,7 @@ export function PositionForm({
                 <div className="space-y-2.5">
                   <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Billing Slab <span className="text-red-600 font-bold">*</span></label>
                   <Select
-                    onValueChange={(val) => setValue("billing_slab", val, { shouldValidate: true })}
+                    onValueChange={(val) => setValue("billing_slab", val as any, { shouldValidate: true })}
                     value={watch("billing_slab")}
                   >
                     <SelectTrigger className={`w-full h-12 rounded-[12px] border px-4 text-[15px] outline-none transition-all shadow-sm ${errors.billing_slab ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-50/30' : 'border-slate-200/80 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 hover:bg-slate-50'} flex items-center justify-between`}>
@@ -408,7 +408,7 @@ export function PositionForm({
                 <div className="space-y-2.5">
                   <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Priority <span className="text-red-600 font-bold">*</span></label>
                   <Select
-                    onValueChange={(val) => setValue("priority", val, { shouldValidate: true })}
+                    onValueChange={(val) => setValue("priority", val as any, { shouldValidate: true })}
                     value={watch("priority")}
                   >
                     <SelectTrigger ref={register("priority").ref} className={`w-full h-12 rounded-[12px] border px-4 text-[15px] outline-none transition-all shadow-sm ${errors.priority ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-50/30' : 'border-slate-200/80 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 hover:bg-slate-50'} flex items-center justify-between`}>
@@ -464,7 +464,7 @@ export function PositionForm({
                   <div className="space-y-2.5">
                     <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Status <span className="text-red-600 font-bold">*</span></label>
                     <Select
-                      onValueChange={(val) => setValue("status", val, { shouldValidate: true })}
+                      onValueChange={(val) => setValue("status", val as any, { shouldValidate: true })}
                       value={watch("status")}
                     >
                       <SelectTrigger ref={register("status").ref} className={`w-full h-12 rounded-[12px] border px-4 text-[15px] outline-none transition-all shadow-sm ${errors.status ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-50/30' : 'border-slate-200/80 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 hover:bg-slate-50'} flex items-center justify-between`}>

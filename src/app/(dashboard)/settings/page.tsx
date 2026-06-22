@@ -46,7 +46,8 @@ export default function SettingsPage() {
     }
   }, [settings, isContextLoading, setValue]);
 
-  const onCurrencySelect = (code: string) => {
+  const onCurrencySelect = (code: string | null) => {
+    if (!code) return;
     const selected = CURRENCY_OPTIONS.find(c => c.code === code);
     if (selected) {
       setValue("currencyCode", selected.code);

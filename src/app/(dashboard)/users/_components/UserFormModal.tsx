@@ -11,8 +11,8 @@ const userSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().optional(),
   role_id: z.string().min(1, "Role is required"),
-  status: z.enum(["Active", "Inactive", "Locked"]).default("Active"),
-  two_fa_method: z.enum(["NONE", "AUTHENTICATOR", "EMAIL"]).default("NONE"),
+  status: z.enum(["Active", "Inactive", "Locked"]),
+  two_fa_method: z.enum(["NONE", "AUTHENTICATOR", "EMAIL"]),
 });
 
 type UserFormValues = z.infer<typeof userSchema>;

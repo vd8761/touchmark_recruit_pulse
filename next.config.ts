@@ -9,9 +9,6 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   turbopack: {},
-  devIndicators: {
-    buildActivity: false,
-  },
 };
 
 export default withPWA(nextConfig);

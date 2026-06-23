@@ -6,6 +6,7 @@ import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { ClientForm } from "./ClientForm";
 import { Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 interface Client {
   id: string;
@@ -23,6 +24,12 @@ export function ClientList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const router = useRouter();
+  const { data: session } = useSession();
+
+  const userRole = session?.user?.role || "Viewer";
+  const canAddClient = ["Super Admin", "Admin", "Business Development"].includes(userRole);
+  const canEditClient = ["Super Admin", "Admin", "Business Development"].includes(userRole);
+  const canDeleteClient = ["Super Admin", "Admin"].includes(userRole);
 
   const fetchClients = async () => {
     setIsLoading(true);
@@ -74,13 +81,15 @@ export function ClientList() {
           <h2 className="text-2xl font-bold tracking-tight text-slate-900">Clients</h2>
           <p className="text-[14px] text-slate-500 mt-1">Manage your recruiting clients and companies.</p>
         </div>
-        <button
-          onClick={handleAddNew}
-          className="bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-600 text-amber-950 font-bold px-4 py-2.5 rounded-[10px] transition-all shadow-sm flex items-center gap-2 self-start sm:self-auto border border-amber-500/50"
-        >
-          <Plus className="w-4 h-4" strokeWidth={3} />
-          Add Client
-        </button>
+        {canAddClient && (
+          <button
+            onClick={handleAddNew}
+            className="bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-600 text-amber-950 font-bold px-4 py-2.5 rounded-[10px] transition-all shadow-sm flex items-center gap-2 self-start sm:self-auto border border-amber-500/50"
+          >
+            <Plus className="w-4 h-4" strokeWidth={3} />
+            Add Client
+          </button>
+        )}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-[12px] shadow-sm overflow-hidden">
@@ -113,13 +122,15 @@ export function ClientList() {
                     <p className="text-slate-500 text-[15px] mb-6 max-w-sm mx-auto leading-relaxed">
                       Get started by adding your first client to start tracking their open positions and placements.
                     </p>
-                    <button 
-                      onClick={handleAddNew} 
-                      className="text-amber-600 hover:text-amber-700 font-semibold text-[15px] flex items-center gap-1.5 mx-auto transition-colors group"
-                    >
-                      <Plus className="w-4 h-4 transition-transform group-hover:scale-110" strokeWidth={2.5} />
-                      <span className="hover:underline underline-offset-4">Add your first client</span>
-                    </button>
+                    {canAddClient && (
+                      <button 
+                        onClick={handleAddNew} 
+                        className="text-amber-600 hover:text-amber-700 font-semibold text-[15px] flex items-center gap-1.5 mx-auto transition-colors group"
+                      >
+                        <Plus className="w-4 h-4 transition-transform group-hover:scale-110" strokeWidth={2.5} />
+                        <span className="hover:underline underline-offset-4">Add your first client</span>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -154,18 +165,22 @@ export function ClientList() {
                             View Details
                           </div>
                         </button>
-                        <button onClick={() => handleEdit(client)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-amber-600 rounded-md transition-colors cursor-pointer">
-                          <FiEdit2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                          <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10 hidden sm:block">
-                            Edit
-                          </div>
-                        </button>
-                        <button onClick={() => handleDelete(client.id)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-red-600 rounded-md transition-colors cursor-pointer">
-                          <FiTrash2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                          <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10 hidden sm:block">
-                            Delete
-                          </div>
-                        </button>
+                        {canEditClient && (
+                          <button onClick={() => handleEdit(client)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-amber-600 rounded-md transition-colors cursor-pointer">
+                            <FiEdit2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
+                            <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10 hidden sm:block">
+                              Edit
+                            </div>
+                          </button>
+                        )}
+                        {canDeleteClient && (
+                          <button onClick={() => handleDelete(client.id)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-red-600 rounded-md transition-colors cursor-pointer">
+                            <FiTrash2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
+                            <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10 hidden sm:block">
+                              Delete
+                            </div>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Users, Briefcase, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, UserCog } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Logo } from "@/components/ui/Logo";
 
 const navigation = [
@@ -19,6 +20,28 @@ const navigation = [
 export function Sidebar({ isMobile = false, onNavigate }: { isMobile?: boolean, onNavigate?: () => void }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const userRole = session?.user?.role || "Viewer";
+
+  // Filter navigation based on role
+  const filteredNavigation = navigation.filter((item) => {
+    if (userRole === "Super Admin") return true;
+    
+    if (item.name === "Users & Roles" || item.name === "Settings") {
+      return false; // Strictly Super Admin only
+    }
+
+    if (item.name === "Audit Logs") {
+      return userRole === "Admin";
+    }
+    
+    if (item.name === "Reports") {
+      return userRole === "Admin" || userRole === "Finance"; 
+    }
+    
+    // Dashboard, Clients, Positions are available to everyone
+    return true;
+  });
 
   // If mobile, never collapse, let the Sheet handle it
   const collapsed = !isMobile && isCollapsed;
@@ -50,7 +73,7 @@ export function Sidebar({ isMobile = false, onNavigate }: { isMobile?: boolean, 
       
       <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4 px-3 overflow-x-hidden">
         <nav className="flex-1 space-y-1.5">
-          {navigation.map((item) => {
+          {filteredNavigation.map((item) => {
             const Icon = item.icon;
             // Check active state dynamically based on current route
             const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -59,8 +82,7 @@ export function Sidebar({ isMobile = false, onNavigate }: { isMobile?: boolean, 
                 key={item.name}
                 href={item.href}
                 onClick={onNavigate}
-                title={collapsed ? item.name : undefined}
-                className={`group flex items-center rounded-lg py-2.5 text-[14px] font-semibold transition-all duration-300 ease-out whitespace-nowrap overflow-hidden ${
+                className={`group relative flex items-center rounded-lg py-2.5 text-[14px] font-semibold transition-all duration-300 ease-out whitespace-nowrap overflow-visible ${
                   collapsed ? 'justify-center px-0 mx-1' : 'px-3.5'
                 } ${
                   isActive 
@@ -77,6 +99,12 @@ export function Sidebar({ isMobile = false, onNavigate }: { isMobile?: boolean, 
                   aria-hidden="true"
                 />
                 {!collapsed && <span>{item.name}</span>}
+                {collapsed && (
+                  <div className="absolute left-14 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200 bg-slate-800 text-white text-xs font-medium py-1.5 px-2.5 rounded-md shadow-md z-50">
+                    {item.name}
+                    <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-[4px] border-transparent border-r-slate-800"></div>
+                  </div>
+                )}
               </Link>
             );
           })}

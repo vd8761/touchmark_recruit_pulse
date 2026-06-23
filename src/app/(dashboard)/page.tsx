@@ -1,6 +1,7 @@
 import { Users, Briefcase, CheckCircle, TrendingUp, Sparkles, Building2, Target, PauseCircle, XCircle } from "lucide-react";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { RoleOpeningsChart, ClientOpeningsChart, MonthlyTrendChart, RevenuePipelineChart } from "@/components/dashboard/DashboardCharts";
 import { HighPriorityTable } from "@/components/dashboard/HighPriorityTable";
@@ -15,9 +16,9 @@ const dailyMessages = [
 ];
 
 export default async function Dashboard() {
-  const session = await getServerSession();
-  const userName = session?.user?.name?.split(" ")[0] || "Admin";
-  const userRole = session?.user?.role || "Admin";
+  const session = await getServerSession(authOptions);
+  const userName = session?.user?.name?.split(" ")[0] || "User";
+  const userRole = session?.user?.role || "Viewer";
 
   const hour = new Date().getHours();
   let greeting = "Good evening";
@@ -78,7 +79,11 @@ export default async function Dashboard() {
   const highPriorityPositions = positions
     .filter(p => (p.priority === "High" || p.priority === "Critical") && p.status !== "Closed")
     .sort((a, b) => new Date(a.expected_joining_date).getTime() - new Date(b.expected_joining_date).getTime())
-    .slice(0, 5);
+    .slice(0, 5)
+    .map(p => ({
+      ...p,
+      per_resource_cost: Number(p.per_resource_cost)
+    }));
 
   positions.forEach(pos => {
     totalRequested += pos.requested_count;
@@ -134,6 +139,7 @@ export default async function Dashboard() {
 
   // Role-aware Ordering
   const isFinance = userRole === "Finance" || userRole === "Super Admin";
+  const canViewFinancials = !["Business Development", "Recruitment", "Viewer"].includes(userRole);
 
   const metricCards = [
     { 
@@ -184,6 +190,12 @@ export default async function Dashboard() {
     metricCards.unshift(revCard);
   }
 
+  // If user cannot view financials, remove the revenue card
+  if (!canViewFinancials) {
+    const revIndex = metricCards.findIndex(c => c.id === 'revenue');
+    if (revIndex > -1) metricCards.splice(revIndex, 1);
+  }
+
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-12">
       
@@ -210,7 +222,7 @@ export default async function Dashboard() {
       </div>
       
       {/* Metric Cards Top Row */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 ${metricCards.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
         {metricCards.map((item) => {
           const Icon = item.icon;
           return (
@@ -238,7 +250,11 @@ export default async function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Top Section: Revenue & Activity */}
         <div className="lg:col-span-2">
-          <RevenuePipelineChart data={revenueData} />
+          {canViewFinancials ? (
+            <RevenuePipelineChart data={revenueData} />
+          ) : (
+            <MonthlyTrendChart data={trendData} />
+          )}
         </div>
         <div className="lg:col-span-1">
           <RecentActivityTimeline logs={recentLogs} />
@@ -256,9 +272,11 @@ export default async function Dashboard() {
       </div>
 
       {/* Trend Section: Full Width */}
-      <div className="mt-6">
-        <MonthlyTrendChart data={trendData} />
-      </div>
+      {canViewFinancials && (
+        <div className="mt-6">
+          <MonthlyTrendChart data={trendData} />
+        </div>
+      )}
 
       {/* Bottom Section: High Priority Table & Status Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">

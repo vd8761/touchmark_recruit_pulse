@@ -9,7 +9,7 @@ export const metadata = {
 
 export default async function UsersPage() {
   const session = await getServerSession(authOptions);
-  if (!session || !["Super Admin", "Admin"].includes(session.user?.role || "")) {
+  if (!session || session.user?.role !== "Super Admin") {
     redirect("/");
   }
 

@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, CalendarIcon, Check, ChevronsUpDown, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, addDays } from "date-fns";
 import { useSettings } from "@/providers/SettingsProvider";
+import { useSession } from "next-auth/react";
 import { AutocompleteInput } from "./AutocompleteInput";
 
 import {
@@ -42,8 +43,10 @@ const positionSchema = z.object({
   role_name: z.string().min(2, "Role name must be at least 2 characters"),
   department: z.string().min(2, "Department must be at least 2 characters"),
   requested_count: z.number().min(1, "Must request at least 1 resource"),
-  per_resource_cost: z.number().min(0, "Cost cannot be negative"),
-  billing_slab: z.string().min(1, "Billing slab is required"),
+  location: z.string().optional(),
+  locations: z.array(z.object({ name: z.string(), count: z.number() })).optional(),
+  per_resource_cost: z.number().min(0, "Cost cannot be negative").optional().default(0),
+  billing_slab: z.string().optional().default(""),
   priority: z.enum(["Low", "Medium", "High", "Critical"]),
   expected_joining_date: z.date(),
   status: z.enum(["Open", "Partially Closed", "Closed", "On Hold", "Cancelled"]),
@@ -78,8 +81,13 @@ export function PositionForm({
   const [error, setError] = useState("");
   const [submitAction, setSubmitAction] = useState<"save" | "save_and_add">("save");
   const [clientComboboxOpen, setClientComboboxOpen] = useState(false);
+  const [isMultiLocation, setIsMultiLocation] = useState(false);
   
   const { settings } = useSettings();
+  const { data: session } = useSession();
+
+  const userRole = session?.user?.role || "Viewer";
+  const canViewFinancials = !["Business Development", "Recruitment", "Viewer"].includes(userRole);
 
   const form = useForm<PositionFormValues>({
     resolver: zodResolver(positionSchema),
@@ -87,6 +95,8 @@ export function PositionForm({
       client_id: preselectedClientId || "",
       role_name: "",
       department: "",
+      location: "",
+      locations: [{ name: "", count: 1 }],
       requested_count: 1,
       per_resource_cost: 0,
       billing_slab: "",
@@ -106,7 +116,12 @@ export function PositionForm({
     formState: { errors },
   } = form;
 
-  const requestedCount = watch("requested_count") || 0;
+  const locations = watch("locations") || [{ name: "", count: 1 }];
+  
+  const requestedCount = isMultiLocation 
+    ? locations.reduce((acc, loc) => acc + (loc.count || 0), 0)
+    : (watch("requested_count") || 0);
+    
   const perResourceCost = watch("per_resource_cost") || 0;
   const totalCost = requestedCount * perResourceCost;
 
@@ -141,6 +156,7 @@ export function PositionForm({
         setValue("client_id", initialData.client_id);
         setValue("role_name", initialData.role_name);
         setValue("department", initialData.department);
+        setValue("location", initialData.location || "");
         setValue("requested_count", initialData.requested_count);
         setValue("per_resource_cost", Number(initialData.per_resource_cost));
         setValue("billing_slab", initialData.billing_slab);
@@ -155,6 +171,8 @@ export function PositionForm({
           client_id: preselectedClientId || "",
           role_name: "",
           department: "",
+          location: "",
+          locations: [{ name: "", count: 1 }],
           requested_count: 1,
           per_resource_cost: 0,
           billing_slab: "",
@@ -175,10 +193,15 @@ export function PositionForm({
       const url = initialData ? `/api/positions/${initialData.id}` : "/api/positions";
       const method = initialData ? "PUT" : "POST";
 
+      const payload = {
+        ...data,
+        locations: isMultiLocation ? data.locations : undefined,
+      };
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
@@ -189,6 +212,8 @@ export function PositionForm({
             client_id: watch("client_id"),
             department: watch("department"),
             role_name: "",
+            location: "",
+            locations: [{ name: "", count: 1 }],
             requested_count: 1,
             per_resource_cost: 0,
             billing_slab: "",
@@ -320,20 +345,103 @@ export function PositionForm({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2.5">
-                  <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Requested Resource Count <span className="text-red-600 font-bold">*</span></label>
-                  <input 
-                    type="number" 
-                    min="1"
-                    {...register("requested_count", { valueAsNumber: true })} 
-                    placeholder="1" 
-                    className={`w-full h-12 rounded-[12px] border px-4 text-[15px] outline-none transition-all shadow-sm ${errors.requested_count ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-50/30' : 'border-slate-200/80 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 hover:bg-slate-50'}`}
-                  />
-                  {errors.requested_count && <p className="text-[12px] text-red-500 font-medium ml-0.5 mt-1.5">{errors.requested_count.message}</p>}
+              <div>
+                <div className="grid grid-cols-2 gap-4 mb-2.5">
+                  <label className="block text-[14px] font-semibold text-slate-800 tracking-tight">Location <span className="text-red-600 font-bold">*</span></label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[14px] font-semibold text-slate-800 tracking-tight">Resource Count <span className="text-red-600 font-bold">*</span></label>
+                    {!initialData && (
+                      <div className="flex items-center gap-2 text-[13px] font-medium text-slate-600">
+                        <span>Multiple Locations</span>
+                        <button 
+                          type="button" 
+                          onClick={() => setIsMultiLocation(!isMultiLocation)}
+                          className={`w-9 h-5 rounded-full relative transition-colors ${isMultiLocation ? 'bg-amber-500' : 'bg-slate-300'}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isMultiLocation ? 'translate-x-4' : ''}`} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2.5">
-                  <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Per Resource Cost ({settings.currencyCode}) <span className="text-red-600 font-bold">*</span></label>
+
+                {!isMultiLocation ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <input 
+                        {...register("location")} 
+                        placeholder="Location (e.g. New York, Remote)" 
+                        className="w-full h-12 rounded-[12px] border border-slate-200/80 px-4 text-[15px] outline-none transition-all shadow-sm focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+                      />
+                    </div>
+                    <div>
+                      <input 
+                        type="number" 
+                        min="1"
+                        {...register("requested_count", { valueAsNumber: true })} 
+                        placeholder="Requested Count" 
+                        className={`w-full h-12 rounded-[12px] border px-4 text-[15px] outline-none transition-all shadow-sm ${errors.requested_count ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-50/30' : 'border-slate-200/80 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 hover:bg-slate-50'}`}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {locations.map((loc, index) => (
+                      <div key={index} className="grid grid-cols-2 gap-4 relative group">
+                        <div>
+                          <input 
+                            value={loc.name}
+                            onChange={(e) => {
+                              const newLocs = [...locations];
+                              newLocs[index].name = e.target.value;
+                              setValue("locations", newLocs, { shouldValidate: true });
+                            }}
+                            placeholder="Location (e.g. New York)" 
+                            className="w-full h-12 rounded-[12px] border border-slate-200/80 px-4 text-[15px] outline-none transition-all shadow-sm focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+                          />
+                        </div>
+                        <div className="flex gap-3">
+                          <input 
+                            type="number" 
+                            min="1"
+                            value={loc.count}
+                            onChange={(e) => {
+                              const newLocs = [...locations];
+                              newLocs[index].count = parseInt(e.target.value) || 1;
+                              setValue("locations", newLocs, { shouldValidate: true });
+                            }}
+                            className="w-full h-12 rounded-[12px] border border-slate-200/80 px-4 text-[15px] outline-none transition-all shadow-sm focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+                          />
+                          {locations.length > 1 && (
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                const newLocs = locations.filter((_, i) => i !== index);
+                                setValue("locations", newLocs, { shouldValidate: true });
+                              }}
+                              className="w-12 h-12 flex-shrink-0 flex items-center justify-center text-red-500 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-[12px] transition-all"
+                            >
+                              <XCircle className="w-5 h-5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <button 
+                      type="button" 
+                      onClick={() => setValue("locations", [...locations, { name: "", count: 1 }], { shouldValidate: true })}
+                      className="text-[13px] text-blue-600 font-bold hover:text-blue-700 flex items-center gap-1 mt-2 px-2 py-1 rounded hover:bg-blue-50 transition-colors w-fit"
+                    >
+                      + Add another location
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {canViewFinancials && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2.5">
+                    <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Per Resource Cost ({settings.currencyCode}) <span className="text-red-600 font-bold">*</span></label>
                   <input 
                     type="number" 
                     min="0"
@@ -342,49 +450,53 @@ export function PositionForm({
                     className={`w-full h-12 rounded-[12px] border px-4 text-[15px] outline-none transition-all shadow-sm ${errors.per_resource_cost ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-50/30' : 'border-slate-200/80 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 hover:bg-slate-50'}`}
                   />
                   {errors.per_resource_cost && <p className="text-[12px] text-red-500 font-medium ml-0.5 mt-1.5">{errors.per_resource_cost.message}</p>}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Dynamic Cost Calculator Display */}
-              <div className="bg-slate-900 rounded-xl p-5 text-white shadow-lg relative overflow-hidden">
-                <div className="absolute right-0 top-0 opacity-10 pointer-events-none transform translate-x-4 -translate-y-4 text-[150px] font-bold leading-none selection:bg-transparent">
-                  {settings.currencySymbol}
-                </div>
-                <div className="relative z-10">
-                  <p className="text-slate-400 text-sm font-medium mb-1">Total Estimated Value</p>
-                  <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold tracking-tight text-amber-400">
-                        {formatCurrency(totalCost)}
-                      </span>
-                      <span className="text-slate-400 text-sm">{settings.currencyCode}</span>
-                    </div>
-                    {settings.currencyCode !== "INR" && settings.inrConversionRate > 0 && (
-                      <div className="flex items-baseline gap-2 sm:before:content-['/'] sm:before:text-slate-600 sm:before:text-xl sm:before:font-light sm:before:mr-2">
-                        <span className="text-2xl font-bold tracking-tight text-emerald-400">
-                          {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(totalCost * settings.inrConversionRate)}
+              {canViewFinancials && (
+                <div className="bg-slate-900 rounded-xl p-5 text-white shadow-lg relative overflow-hidden">
+                  <div className="absolute right-0 top-0 opacity-10 pointer-events-none transform translate-x-4 -translate-y-4 text-[150px] font-bold leading-none selection:bg-transparent">
+                    {settings.currencySymbol}
+                  </div>
+                  <div className="relative z-10">
+                    <p className="text-slate-400 text-sm font-medium mb-1">Total Estimated Value</p>
+                    <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold tracking-tight text-amber-400">
+                          {formatCurrency(totalCost)}
                         </span>
-                        <span className="text-slate-400 text-sm">INR</span>
+                        <span className="text-slate-400 text-sm">{settings.currencyCode}</span>
                       </div>
-                    )}
-                  </div>
-                  <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <p className="text-slate-400 text-xs">
-                      {requestedCount} resources × {formatCurrency(perResourceCost)} / resource
-                    </p>
-                    {settings.currencyCode !== "INR" && settings.inrConversionRate > 0 && (
-                      <div className="text-slate-200 text-[11.5px] tracking-wide bg-slate-800/80 px-2.5 py-1 rounded-md inline-flex items-center gap-1.5 w-fit border border-slate-700/50 shadow-sm">
-                        <svg className="text-emerald-400" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                        1 {settings.currencyCode} = ₹{settings.inrConversionRate.toFixed(2)}
-                      </div>
-                    )}
+                      {settings.currencyCode !== "INR" && settings.inrConversionRate > 0 && (
+                        <div className="flex items-baseline gap-2 sm:before:content-['/'] sm:before:text-slate-600 sm:before:text-xl sm:before:font-light sm:before:mr-2">
+                          <span className="text-2xl font-bold tracking-tight text-emerald-400">
+                            {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(totalCost * settings.inrConversionRate)}
+                          </span>
+                          <span className="text-slate-400 text-sm">INR</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <p className="text-slate-400 text-xs">
+                        {requestedCount} resources × {formatCurrency(perResourceCost)} / resource
+                      </p>
+                      {settings.currencyCode !== "INR" && settings.inrConversionRate > 0 && (
+                        <div className="text-slate-200 text-[11.5px] tracking-wide bg-slate-800/80 px-2.5 py-1 rounded-md inline-flex items-center gap-1.5 w-fit border border-slate-700/50 shadow-sm">
+                          <svg className="text-emerald-400" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                          1 {settings.currencyCode} = ₹{settings.inrConversionRate.toFixed(2)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2.5">
-                  <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Billing Slab <span className="text-red-600 font-bold">*</span></label>
+                {canViewFinancials && (
+                  <div className="space-y-2.5">
+                    <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Billing Slab <span className="text-red-600 font-bold">*</span></label>
                   <Select
                     onValueChange={(val) => setValue("billing_slab", val as any, { shouldValidate: true })}
                     value={watch("billing_slab")}
@@ -399,11 +511,12 @@ export function PositionForm({
                       <SelectItem value="15-20 Lakhs" className="text-[14px] cursor-pointer focus:bg-slate-50 focus:text-slate-900 font-medium py-2.5">15-20 Lakhs</SelectItem>
                       <SelectItem value="20-25 Lakhs" className="text-[14px] cursor-pointer focus:bg-slate-50 focus:text-slate-900 font-medium py-2.5">20-25 Lakhs</SelectItem>
                       <SelectItem value="25-30 Lakhs" className="text-[14px] cursor-pointer focus:bg-slate-50 focus:text-slate-900 font-medium py-2.5">25-30 Lakhs</SelectItem>
-                      <SelectItem value="30+ Lakhs" className="text-[14px] cursor-pointer focus:bg-slate-50 focus:text-slate-900 font-medium py-2.5">30+ Lakhs</SelectItem>
+                      <SelectItem value="25+ Lakhs" className="text-[14px] cursor-pointer focus:bg-slate-50 focus:text-slate-900 font-medium py-2.5">25+ Lakhs</SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.billing_slab && <p className="text-[12px] text-red-500 font-medium ml-0.5 mt-1.5">{errors.billing_slab.message}</p>}
                 </div>
+                )}
 
                 <div className="space-y-2.5">
                   <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Priority <span className="text-red-600 font-bold">*</span></label>

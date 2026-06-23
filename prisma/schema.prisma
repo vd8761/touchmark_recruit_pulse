@@ -75,6 +75,7 @@ model Position {
   client                Client    @relation(fields: [client_id], references: [id])
   role_name             String
   department            String
+  location              String?
   requested_count       Int
   closed_count          Int       @default(0)
   per_resource_cost     Decimal

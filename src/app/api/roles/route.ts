@@ -5,8 +5,8 @@ import { authOptions } from "@/lib/auth";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session || !["Super Admin", "Admin"].includes(session.user?.role || "")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (!session || session.user?.role !== "Super Admin") {
+    return NextResponse.json({ error: "Forbidden: Super Admin only" }, { status: 403 });
   }
 
   try {

@@ -3,12 +3,12 @@
 import { useEffect, useState, Suspense } from "react";
 import { format } from "date-fns";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Loader2, Plus, Building2, Briefcase } from "lucide-react";
+import { Loader2, Plus, Building2, Briefcase, MapPin, Eye } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useSettings } from "@/providers/SettingsProvider";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { PositionForm } from "./PositionForm";
 import { PositionDetailsSheet } from "./PositionDetailsSheet";
-import { Eye } from "lucide-react";
 
 interface Position {
   id: string;
@@ -42,6 +42,13 @@ function PositionListInner() {
   const [selectedPosition, setSelectedPosition] = useState<Position | undefined>();
   const [preselectedClientId, setPreselectedClientId] = useState<string | undefined>();
   const { settings } = useSettings();
+  const { data: session } = useSession();
+
+  const userRole = session?.user?.role || "Viewer";
+  const canAddPosition = ["Super Admin", "Admin", "Business Development"].includes(userRole);
+  const canEditPosition = ["Super Admin", "Admin", "Business Development"].includes(userRole);
+  const canDeletePosition = ["Super Admin", "Admin"].includes(userRole);
+  const canViewFinancials = !["Business Development", "Recruitment", "Viewer"].includes(userRole);
 
   useEffect(() => {
     if (newClientId) {
@@ -139,13 +146,15 @@ function PositionListInner() {
           <h2 className="text-2xl font-bold tracking-tight text-slate-900">Positions</h2>
           <p className="text-[14px] text-slate-500 mt-1">Manage open jobs and track fulfillment progress.</p>
         </div>
-        <button
-          onClick={handleAddNew}
-          className="bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-600 text-amber-950 font-bold px-4 py-2.5 rounded-[10px] transition-all shadow-sm flex items-center gap-2 self-start sm:self-auto border border-amber-500/50"
-        >
-          <Plus className="w-4 h-4" strokeWidth={3} />
-          Add Position
-        </button>
+        {canAddPosition && (
+          <button
+            onClick={handleAddNew}
+            className="bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-600 text-amber-950 font-bold px-4 py-2.5 rounded-[10px] transition-all shadow-sm flex items-center gap-2 self-start sm:self-auto border border-amber-500/50"
+          >
+            <Plus className="w-4 h-4" strokeWidth={3} />
+            Add Position
+          </button>
+        )}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-[12px] shadow-sm overflow-hidden">
@@ -154,7 +163,9 @@ function PositionListInner() {
             <thead className="bg-slate-50/50 border-b border-slate-200 text-slate-500">
               <tr>
                 <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider">Role & Company</th>
-                <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider hidden md:table-cell">Cost & Slab</th>
+                {canViewFinancials && (
+                  <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider hidden md:table-cell">Cost & Slab</th>
+                )}
                 <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider hidden sm:table-cell text-center">Fulfillment</th>
                 <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider">Status & Priority</th>
                 <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider text-right">Actions</th>
@@ -178,13 +189,15 @@ function PositionListInner() {
                     <p className="text-slate-500 text-[15px] mb-6 max-w-sm mx-auto leading-relaxed">
                       Get started by adding your first job opening for a client.
                     </p>
-                    <button 
-                      onClick={handleAddNew} 
-                      className="text-amber-600 hover:text-amber-700 font-semibold text-[15px] flex items-center gap-1.5 mx-auto transition-colors group"
-                    >
-                      <Plus className="w-4 h-4 transition-transform group-hover:scale-110" strokeWidth={2.5} />
-                      <span className="hover:underline underline-offset-4">Add your first position</span>
-                    </button>
+                    {canAddPosition && (
+                      <button 
+                        onClick={handleAddNew} 
+                        className="text-amber-600 hover:text-amber-700 font-semibold text-[15px] flex items-center gap-1.5 mx-auto transition-colors group"
+                      >
+                        <Plus className="w-4 h-4 transition-transform group-hover:scale-110" strokeWidth={2.5} />
+                        <span className="hover:underline underline-offset-4">Add your first position</span>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -196,19 +209,28 @@ function PositionListInner() {
                     <tr key={position.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="font-bold text-slate-900 text-[15px] mb-0.5">{position.role_name}</div>
-                        <div className="text-slate-500 text-[13px] flex items-center gap-1.5">
+                        <div className="text-slate-500 text-[13px] flex items-center gap-1.5 flex-wrap">
                           <Building2 className="w-3.5 h-3.5" />
                           {position.client?.company_name} <span className="text-slate-300">•</span> {position.department}
+                          {position.location && (
+                            <>
+                              <span className="text-slate-300">•</span>
+                              <MapPin className="w-3.5 h-3.5" />
+                              {position.location}
+                            </>
+                          )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 hidden md:table-cell">
-                        <div className="flex items-center gap-1 font-semibold text-slate-900">
-                          {formatCurrency(totalCost)}
-                        </div>
-                        <div className="text-slate-500 text-[12px] mt-0.5 font-medium">
-                          Slab: {position.billing_slab}
-                        </div>
-                      </td>
+                      {canViewFinancials && (
+                        <td className="px-6 py-4 hidden md:table-cell">
+                          <div className="flex items-center gap-1 font-semibold text-slate-900">
+                            {formatCurrency(totalCost)}
+                          </div>
+                          <div className="text-slate-500 text-[12px] mt-0.5 font-medium">
+                            Slab: {position.billing_slab}
+                          </div>
+                        </td>
+                      )}
                       <td className="px-6 py-4 hidden sm:table-cell">
                         <div className="flex items-center justify-center gap-3">
                           <div className="text-right">
@@ -254,7 +276,7 @@ function PositionListInner() {
                               View Details
                             </div>
                           </button>
-                          {position.status !== 'Closed' && position.status !== 'Cancelled' && (
+                          {canEditPosition && position.status !== 'Closed' && position.status !== 'Cancelled' && (
                             <button onClick={() => handleEdit(position)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-amber-600 rounded-md transition-colors cursor-pointer">
                               <FiEdit2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
                               <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10">
@@ -262,12 +284,14 @@ function PositionListInner() {
                               </div>
                             </button>
                           )}
-                          <button onClick={() => handleDelete(position.id)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-red-600 rounded-md transition-colors cursor-pointer">
-                            <FiTrash2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                            <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10">
-                              Delete
-                            </div>
-                          </button>
+                          {canDeletePosition && (
+                            <button onClick={() => handleDelete(position.id)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-red-600 rounded-md transition-colors cursor-pointer">
+                              <FiTrash2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
+                              <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10">
+                                Delete
+                              </div>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

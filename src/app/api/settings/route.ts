@@ -25,6 +25,10 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (session.user.role !== "Super Admin") {
+      return NextResponse.json({ error: "Forbidden: Super Admin only" }, { status: 403 });
+    }
+
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

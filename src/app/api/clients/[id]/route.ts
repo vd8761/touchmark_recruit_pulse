@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { sendClientModifiedAlert, sendClientDeletedAlert } from "@/lib/email";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userRole = session.user.role || "Viewer";
+    if (!["Super Admin", "Admin", "Business Development"].includes(userRole)) {
+      return NextResponse.json({ error: "Forbidden: Insufficient role" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -47,9 +53,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userRole = session.user.role || "Viewer";
+    if (!["Super Admin", "Admin"].includes(userRole)) {
+      return NextResponse.json({ error: "Forbidden: Insufficient role to delete clients" }, { status: 403 });
     }
 
     const { id } = await params;

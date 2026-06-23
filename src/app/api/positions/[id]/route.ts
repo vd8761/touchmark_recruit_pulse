@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { sendPositionModifiedAlert, sendPositionDeletedAlert } from "@/lib/email";
 
 export async function PUT(req: Request, props: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userRole = session.user.role || "Viewer";
+    if (!["Super Admin", "Admin", "Business Development"].includes(userRole)) {
+      return NextResponse.json({ error: "Forbidden: Insufficient role" }, { status: 403 });
     }
 
     const params = await props.params;
@@ -40,23 +46,30 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
       return NextResponse.json({ error: `Cannot reduce requested count below the currently closed count (${existingPosition.closed_count}).` }, { status: 400 });
     }
 
+    const canViewFinancials = !["Business Development", "Recruitment", "Viewer"].includes(userRole);
+
     // Update the position and write the audit log in a transaction
     const updatedPosition = await prisma.$transaction(async (tx) => {
+      const updateData: any = {
+        client_id,
+        role_name,
+        department,
+        requested_count: parseInt(requested_count),
+        priority,
+        expected_joining_date: new Date(expected_joining_date),
+        status,
+        remarks,
+        updated_by: user.id,
+      };
+
+      if (canViewFinancials) {
+        updateData.per_resource_cost = parseFloat(per_resource_cost);
+        updateData.billing_slab = billing_slab;
+      }
+
       const updated = await tx.position.update({
         where: { id },
-        data: {
-          client_id,
-          role_name,
-          department,
-          requested_count: parseInt(requested_count),
-          per_resource_cost: parseFloat(per_resource_cost),
-          billing_slab,
-          priority,
-          expected_joining_date: new Date(expected_joining_date),
-          status,
-          remarks,
-          updated_by: user.id,
-        },
+        data: updateData,
       });
 
       // Upsert JobRole and Department dictionaries
@@ -100,9 +113,14 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
 
 export async function DELETE(req: Request, props: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userRole = session.user.role || "Viewer";
+    if (!["Super Admin", "Admin"].includes(userRole)) {
+      return NextResponse.json({ error: "Forbidden: Insufficient role to delete positions" }, { status: 403 });
     }
 
     const params = await props.params;

@@ -2,12 +2,19 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { Building2, Mail, Phone, MapPin, Briefcase, TrendingUp, Activity, Users, ArrowLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import { ClientPositionsTable } from "./_components/ClientPositionsTable";
 
 export default async function ClientDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  
+  const session = await getServerSession(authOptions);
+  const userRole = session?.user?.role || "Viewer";
+  const canViewFinancials = !["Business Development", "Recruitment", "Viewer"].includes(userRole);
+
   const [client, settingsRow] = await Promise.all([
     prisma.client.findUnique({
       where: { id: id, deleted_at: null },
@@ -97,7 +104,7 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${canViewFinancials ? 'lg:grid-cols-4' : 'lg:grid-cols-2'} gap-5`}>
         <div className="bg-white p-5 rounded-[16px] border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3 text-slate-600 mb-2">
             <Briefcase className="w-4 h-4 text-amber-500" />
@@ -121,20 +128,24 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
             <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(100, (totalClosed / Math.max(1, totalRequested)) * 100)}%` }}></div>
           </div>
         </div>
-        <div className="bg-white p-5 rounded-[16px] border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-3 text-slate-600 mb-2">
-            <TrendingUp className="w-4 h-4 text-blue-500" />
-            <h3 className="text-sm font-semibold">Expected Revenue</h3>
-          </div>
-          <span className="text-2xl font-bold text-slate-900">{formatCurrency(expectedRevenue)}</span>
-        </div>
-        <div className="bg-white p-5 rounded-[16px] border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-3 text-slate-600 mb-2">
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
-            <h3 className="text-sm font-semibold">Realized Revenue</h3>
-          </div>
-          <span className="text-2xl font-bold text-slate-900">{formatCurrency(closedRevenue)}</span>
-        </div>
+        {canViewFinancials && (
+          <>
+            <div className="bg-white p-5 rounded-[16px] border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-3 text-slate-600 mb-2">
+                <TrendingUp className="w-4 h-4 text-blue-500" />
+                <h3 className="text-sm font-semibold">Expected Revenue</h3>
+              </div>
+              <span className="text-2xl font-bold text-slate-900">{formatCurrency(expectedRevenue)}</span>
+            </div>
+            <div className="bg-white p-5 rounded-[16px] border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-3 text-slate-600 mb-2">
+                <TrendingUp className="w-4 h-4 text-emerald-500" />
+                <h3 className="text-sm font-semibold">Realized Revenue</h3>
+              </div>
+              <span className="text-2xl font-bold text-slate-900">{formatCurrency(closedRevenue)}</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Tabs Section */}
@@ -152,7 +163,7 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
         </TabsList>
 
         <TabsContent value="portfolio" className="pt-6">
-          <ClientPositionsTable client={client} />
+          <ClientPositionsTable client={JSON.parse(JSON.stringify(client))} />
         </TabsContent>
 
         <TabsContent value="contact" className="pt-6">

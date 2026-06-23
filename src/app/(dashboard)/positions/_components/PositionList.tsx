@@ -104,9 +104,9 @@ function PositionListInner() {
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat(settings.currencyLocale, {
+    return new Intl.NumberFormat(settings?.currencyLocale || 'en-US', {
       style: 'currency',
-      currency: settings.currencyCode,
+      currency: settings?.currencyCode || 'USD',
       maximumFractionDigits: 0,
     }).format(value);
   };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSettings } from "@/providers/SettingsProvider";
 import { PositionDetailsSheet } from "@/app/(dashboard)/positions/_components/PositionDetailsSheet";
 import { useRouter } from "next/navigation";
 
@@ -11,9 +12,10 @@ interface ClientPositionsTableProps {
 export function ClientPositionsTable({ client }: ClientPositionsTableProps) {
   const router = useRouter();
   const [selectedPosition, setSelectedPosition] = useState<any | null>(null);
+  const { settings } = useSettings();
 
   const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+    new Intl.NumberFormat(settings?.currencyLocale || 'en-US', { style: 'currency', currency: settings?.currencyCode || 'USD', maximumFractionDigits: 0 }).format(val);
 
   return (
     <>

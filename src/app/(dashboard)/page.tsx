@@ -1,4 +1,4 @@
-import { Users, Briefcase, CheckCircle, DollarSign, Sparkles, Building2, Target, PauseCircle, XCircle } from "lucide-react";
+import { Users, Briefcase, CheckCircle, TrendingUp, Sparkles, Building2, Target, PauseCircle, XCircle } from "lucide-react";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
@@ -27,7 +27,7 @@ export default async function Dashboard() {
   const randomMessage = dailyMessages[Math.floor(Math.random() * dailyMessages.length)];
 
   // --- Fetch Data ---
-  const [clients, positions, recentLogs] = await Promise.all([
+  const [clients, positions, recentLogs, settingsRow] = await Promise.all([
     prisma.client.findMany({ where: { deleted_at: null } }),
     prisma.position.findMany({ 
       where: { deleted_at: null },
@@ -37,8 +37,20 @@ export default async function Dashboard() {
       orderBy: { timestamp: 'desc' },
       take: 5,
       include: { modifier: true }
+    }),
+    prisma.appSetting.findMany({ 
+      where: { key: { in: ["currencyCode", "currencyLocale"] } } 
     })
   ]);
+
+  let currencyCode = "USD";
+  let currencyLocale = "en-US";
+  if (settingsRow && settingsRow.length > 0) {
+    const codeSetting = settingsRow.find(s => s.key === "currencyCode");
+    const localeSetting = settingsRow.find(s => s.key === "currencyLocale");
+    if (codeSetting?.value) currencyCode = codeSetting.value;
+    if (localeSetting?.value) currencyLocale = localeSetting.value;
+  }
 
   // Client Metrics
   const totalClients = clients.length;
@@ -104,7 +116,7 @@ export default async function Dashboard() {
     });
   });
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat(currencyLocale, { style: 'currency', currency: currencyCode, maximumFractionDigits: 0 }).format(val);
 
   // Format charts
   const clientData = Object.entries(clientOpeningsMap).map(([name, open]) => ({ name, open })).sort((a, b) => b.open - a.open).slice(0, 10);
@@ -159,7 +171,7 @@ export default async function Dashboard() {
       name: 'Pending Pipeline', 
       stat: formatCurrency(pendingRevenue), 
       sub: `${formatCurrency(closedRevenue)} realized revenue`, 
-      icon: DollarSign, 
+      icon: TrendingUp, 
       color: 'text-purple-600', 
       bg: 'bg-purple-50',
       href: '/reports'

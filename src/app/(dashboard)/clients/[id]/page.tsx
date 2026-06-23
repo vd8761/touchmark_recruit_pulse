@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { Building2, Mail, Phone, MapPin, Briefcase, DollarSign, Activity, Users, ArrowLeft, CheckCircle } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, Briefcase, TrendingUp, Activity, Users, ArrowLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
@@ -8,15 +8,29 @@ import { ClientPositionsTable } from "./_components/ClientPositionsTable";
 
 export default async function ClientDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const client = await prisma.client.findUnique({
-    where: { id: id, deleted_at: null },
-    include: {
-      positions: {
-        where: { deleted_at: null },
-        include: { closures: true }
+  const [client, settingsRow] = await Promise.all([
+    prisma.client.findUnique({
+      where: { id: id, deleted_at: null },
+      include: {
+        positions: {
+          where: { deleted_at: null },
+          include: { closures: true }
+        }
       }
-    }
-  });
+    }),
+    prisma.appSetting.findMany({ 
+      where: { key: { in: ["currencyCode", "currencyLocale"] } } 
+    })
+  ]);
+
+  let currencyCode = "USD";
+  let currencyLocale = "en-US";
+  if (settingsRow && settingsRow.length > 0) {
+    const codeSetting = settingsRow.find(s => s.key === "currencyCode");
+    const localeSetting = settingsRow.find(s => s.key === "currencyLocale");
+    if (codeSetting?.value) currencyCode = codeSetting.value;
+    if (localeSetting?.value) currencyLocale = localeSetting.value;
+  }
 
   if (!client) {
     notFound();
@@ -48,7 +62,7 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
     include: { modifier: true }
   });
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat(currencyLocale, { style: 'currency', currency: currencyCode, maximumFractionDigits: 0 }).format(val);
 
   return (
     <div className="max-w-[1200px] mx-auto pb-12 space-y-6">
@@ -109,14 +123,14 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
         </div>
         <div className="bg-white p-5 rounded-[16px] border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3 text-slate-600 mb-2">
-            <DollarSign className="w-4 h-4 text-blue-500" />
+            <TrendingUp className="w-4 h-4 text-blue-500" />
             <h3 className="text-sm font-semibold">Expected Revenue</h3>
           </div>
           <span className="text-2xl font-bold text-slate-900">{formatCurrency(expectedRevenue)}</span>
         </div>
         <div className="bg-white p-5 rounded-[16px] border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3 text-slate-600 mb-2">
-            <DollarSign className="w-4 h-4 text-emerald-500" />
+            <TrendingUp className="w-4 h-4 text-emerald-500" />
             <h3 className="text-sm font-semibold">Realized Revenue</h3>
           </div>
           <span className="text-2xl font-bold text-slate-900">{formatCurrency(closedRevenue)}</span>

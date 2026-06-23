@@ -1,6 +1,7 @@
 "use client";
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts';
+import { useSettings } from "@/providers/SettingsProvider";
 
 const PIE_COLORS = ['#f59e0b', '#0f172a', '#fbbf24', '#334155', '#fcd34d', '#64748b'];
 
@@ -105,6 +106,7 @@ export function MonthlyTrendChart({ data }: { data: any[] }) {
 }
 
 export function RevenuePipelineChart({ data }: { data: any[] }) {
+  const { settings } = useSettings();
   if (!data || data.length === 0) {
     return (
       <div className="bg-white p-6 rounded-[16px] border border-slate-200 shadow-sm h-full flex flex-col animate-in fade-in duration-700 slide-in-from-bottom-4">
@@ -123,8 +125,8 @@ export function RevenuePipelineChart({ data }: { data: any[] }) {
             <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(val) => `$${val >= 1000 ? val/1000 + 'k' : val}`} />
-              <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(val: any) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(val) => `${settings?.currencySymbol || '$'}${val >= 1000 ? val/1000 + 'k' : val}`} />
+              <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(val: any) => new Intl.NumberFormat(settings?.currencyLocale || 'en-US', { style: 'currency', currency: settings?.currencyCode || 'USD', maximumFractionDigits: 0 }).format(val)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
               <Bar dataKey="amount" radius={[4, 4, 0, 0]} maxBarSize={60}>
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />

@@ -90,7 +90,7 @@ export function PositionForm({
   const canViewFinancials = !["Business Development", "Recruitment", "Viewer"].includes(userRole);
 
   const form = useForm<PositionFormValues>({
-    resolver: zodResolver(positionSchema),
+    resolver: zodResolver(positionSchema) as any,
     defaultValues: {
       client_id: preselectedClientId || "",
       role_name: "",

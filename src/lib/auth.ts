@@ -11,7 +11,8 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        otp: { label: "OTP", type: "text" }
+        otp: { label: "OTP", type: "text" },
+        setupSecret: { label: "Setup Secret", type: "text" }
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -43,12 +44,26 @@ export const authOptions: NextAuthOptions = {
           }
 
           if (user.two_fa_method === "AUTHENTICATOR") {
-            if (!user.two_fa_secret) {
-              throw new Error("Authenticator not set up");
-            }
-            const isValidOTP = await verify({ token: credentials.otp, secret: user.two_fa_secret });
-            if (!isValidOTP.valid) {
-              throw new Error("Invalid Authenticator code");
+            if (credentials.setupSecret) {
+              // Verifying for the first time during setup
+              const isValidOTP = await verify({ token: credentials.otp, secret: credentials.setupSecret });
+              if (!isValidOTP.valid) {
+                throw new Error("Invalid Authenticator code");
+              }
+              // Save it to the database now that it is verified!
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { two_fa_secret: credentials.setupSecret }
+              });
+            } else {
+              // Normal login
+              if (!user.two_fa_secret) {
+                throw new Error("Authenticator not set up");
+              }
+              const isValidOTP = await verify({ token: credentials.otp, secret: user.two_fa_secret });
+              if (!isValidOTP.valid) {
+                throw new Error("Invalid Authenticator code");
+              }
             }
           }
 

@@ -97,13 +97,14 @@ export default function LoginPage() {
     }
   };
 
-  const finalizeLogin = async (email: string, password: string, otpCode?: string) => {
+  const finalizeLogin = async (email: string, password: string, otpCode?: string, setupSecret?: string) => {
     setLoading(true);
     setError("");
     const res = await signIn("credentials", {
       email,
       password,
       otp: otpCode,
+      setupSecret: setupSecret,
       redirect: false,
     });
 
@@ -119,7 +120,7 @@ export default function LoginPage() {
   const onVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otp) return setError("Please enter the verification code");
-    await finalizeLogin(tempCredentials.email, tempCredentials.password, otp);
+    await finalizeLogin(tempCredentials.email, tempCredentials.password, otp, secretKey || undefined);
   };
 
   return (

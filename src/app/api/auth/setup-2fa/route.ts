@@ -32,11 +32,9 @@ export async function POST(req: Request) {
     const otpauth = generateURI({ issuer: service, label: user.email, secret });
     const qrCodeUrl = await qrcode.toDataURL(otpauth);
 
-    // Persist secret directly (since they must complete this to login anyway)
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { two_fa_secret: secret }
-    });
+    // Do NOT persist the secret yet! We will only persist it in the credentials 
+    // provider once the user submits the first valid OTP confirming they scanned it.
+
 
     return NextResponse.json({ qrCodeUrl, secret });
   } catch (error: any) {

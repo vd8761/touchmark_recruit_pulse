@@ -19,6 +19,7 @@ interface Position {
   };
   role_name: string;
   department: string;
+  location?: string;
   requested_count: number;
   closed_count: number;
   per_resource_cost: string | number;

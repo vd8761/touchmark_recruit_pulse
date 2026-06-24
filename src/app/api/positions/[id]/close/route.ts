@@ -13,7 +13,7 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
     const params = await props.params;
     const id = params.id;
     const body = await req.json();
-    const { closed_count, closure_date, closure_details, remarks } = body;
+    const { closed_count, closure_date, closure_details, remarks, location } = body;
 
     if (!closed_count || closed_count <= 0) {
       return NextResponse.json({ error: "Closed count must be greater than 0" }, { status: 400 });
@@ -42,6 +42,31 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
       return NextResponse.json({ error: "Cannot close more resources than requested" }, { status: 400 });
     }
 
+    const isMultiLocation = Array.isArray(position.locations) && position.locations.length > 0;
+    let resolvedLocation = location;
+    if (!isMultiLocation && !location && position.location) {
+      resolvedLocation = position.location;
+    }
+
+    let newLocationsJson = position.locations as any[];
+    if (isMultiLocation && resolvedLocation) {
+      const locIndex = newLocationsJson.findIndex((l: any) => l.name === resolvedLocation);
+      if (locIndex !== -1) {
+        const locData = newLocationsJson[locIndex];
+        const currentClosedForLoc = locData.closed_count || 0;
+        if (currentClosedForLoc + parseInt(closed_count) > locData.count) {
+          return NextResponse.json({ error: `Cannot close more resources than requested for location ${resolvedLocation}` }, { status: 400 });
+        }
+        newLocationsJson[locIndex].closed_count = currentClosedForLoc + parseInt(closed_count);
+      } else {
+        return NextResponse.json({ error: "Location not found in position" }, { status: 400 });
+      }
+    } else if (resolvedLocation && !isMultiLocation) {
+      if (resolvedLocation !== position.location) {
+        return NextResponse.json({ error: "Location does not match" }, { status: 400 });
+      }
+    }
+
     // Process closure in a transaction
     const result = await prisma.$transaction(async (tx) => {
       const newClosedCount = position.closed_count + parseInt(closed_count);
@@ -55,16 +80,24 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
         data: {
           closed_count: newClosedCount,
           status: newStatus,
-          updated_by: user.id
-        }
+          updated_by: user.id,
+          ...(newLocationsJson ? { locations: newLocationsJson } : {})
+        },
+        include: { client: true }
       });
 
-      // 2. Create PositionClosure record (Using raw SQL to bypass hot-reload cache for new tables)
-      const closureId = crypto.randomUUID();
-      await tx.$executeRawUnsafe(`
-        INSERT INTO "PositionClosure" (id, position_id, closed_count, closure_date, closure_details, remarks, closed_by, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-      `, closureId, id, parseInt(closed_count), new Date(closure_date), closure_details, remarks || null, user.id);
+      // 2. Create PositionClosure record 
+      const closure = await tx.positionClosure.create({
+        data: {
+          position_id: id,
+          closed_count: parseInt(closed_count),
+          location: resolvedLocation || null,
+          closure_date: new Date(closure_date),
+          closure_details: closure_details,
+          remarks: remarks || null,
+          closed_by: user.id
+        }
+      });
 
       // 3. Create AuditLog
       await tx.auditLog.create({
@@ -74,12 +107,12 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
           action: "Close Resources",
           old_values: position as any,
           new_values: updatedPosition as any,
-          reason: `Closed ${closed_count} resource(s): ${closure_details}`,
+          reason: `Closed ${closed_count} resource(s)${resolvedLocation ? ` at ${resolvedLocation}` : ''}: ${closure_details}`,
           modified_by: user.id
         }
       });
 
-      return { position: updatedPosition, closureId };
+      return { position: updatedPosition, closureId: closure.id };
     });
 
     // Send email alert asynchronously

@@ -4,6 +4,30 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { sendPositionModifiedAlert, sendPositionDeletedAlert } from "@/lib/email";
 
+export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const params = await props.params;
+    const position = await prisma.position.findUnique({
+      where: { id: params.id },
+      include: { client: true }
+    });
+
+    if (!position) {
+      return NextResponse.json({ error: "Position not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(position);
+  } catch (error) {
+    console.error("Failed to fetch position:", error);
+    return NextResponse.json({ error: "Failed to fetch position" }, { status: 500 });
+  }
+}
+
 export async function PUT(req: Request, props: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
@@ -19,7 +43,7 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     const params = await props.params;
     const id = params.id;
     const body = await req.json();
-    const { client_id, role_name, department, requested_count, per_resource_cost, billing_slab, priority, expected_joining_date, status, remarks, modification_reason } = body;
+    const { client_id, role_name, department, requested_count, per_resource_cost, billing_slab, priority, expected_joining_date, status, remarks, modification_reason, location, locations } = body;
 
     if (!modification_reason) {
       return NextResponse.json({ error: "Modification reason is strictly required." }, { status: 400 });
@@ -42,19 +66,46 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
       return NextResponse.json({ error: "Position not found" }, { status: 404 });
     }
 
-    if (parseInt(requested_count) < existingPosition.closed_count) {
-      return NextResponse.json({ error: `Cannot reduce requested count below the currently closed count (${existingPosition.closed_count}).` }, { status: 400 });
+    const isMultiLocation = Array.isArray(locations) && locations.length > 0;
+    
+    let finalLocations = locations;
+    if (isMultiLocation) {
+      finalLocations = locations.map((loc: any) => {
+        const existingLoc = (existingPosition.locations as any[])?.find((l: any) => l.name === loc.name);
+        const closedForLoc = existingLoc ? (existingLoc.closed_count || 0) : 0;
+        return {
+          ...loc,
+          closed_count: closedForLoc
+        };
+      });
+
+      for (const loc of finalLocations) {
+        if (parseInt(loc.count) < loc.closed_count) {
+          return NextResponse.json({ error: `Cannot reduce requested count for ${loc.name} below its currently closed count (${loc.closed_count}).` }, { status: 400 });
+        }
+      }
+    }
+
+    const totalRequestedCount = isMultiLocation 
+      ? finalLocations.reduce((sum: number, loc: any) => sum + parseInt(loc.count || 0), 0)
+      : parseInt(requested_count);
+
+    if (totalRequestedCount < existingPosition.closed_count) {
+      return NextResponse.json({ error: `Cannot reduce overall requested count below the currently closed count (${existingPosition.closed_count}).` }, { status: 400 });
     }
 
     const canViewFinancials = !["Business Development", "Recruitment", "Viewer"].includes(userRole);
 
-    // Update the position and write the audit log in a transaction
     const updatedPosition = await prisma.$transaction(async (tx) => {
+      const primaryLocation = isMultiLocation ? finalLocations[0].name : (location || null);
+
       const updateData: any = {
         client_id,
         role_name,
         department,
-        requested_count: parseInt(requested_count),
+        location: primaryLocation,
+        locations: isMultiLocation ? finalLocations : undefined,
+        requested_count: totalRequestedCount,
         priority,
         expected_joining_date: new Date(expected_joining_date),
         status,
@@ -70,6 +121,7 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
       const updated = await tx.position.update({
         where: { id },
         data: updateData,
+        include: { client: true }
       });
 
       // Upsert JobRole and Department dictionaries
@@ -86,6 +138,19 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
         ON CONFLICT (name) DO NOTHING;
       `, crypto.randomUUID(), department);
 
+      let changes = [];
+      if (existingPosition.requested_count !== totalRequestedCount) {
+        changes.push(`Count changed from ${existingPosition.requested_count} to ${totalRequestedCount}`);
+      }
+      if (existingPosition.status !== status) {
+        changes.push(`Status changed to ${status}`);
+      }
+      if (existingPosition.priority !== priority) {
+        changes.push(`Priority changed to ${priority}`);
+      }
+      
+      const changeText = changes.length > 0 ? `[${changes.join(', ')}] ` : '';
+
       await tx.auditLog.create({
         data: {
           entity_type: "Position",
@@ -93,7 +158,7 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
           action: "Update",
           old_values: existingPosition as any,
           new_values: updated as any,
-          reason: modification_reason,
+          reason: `${changeText}${modification_reason}`,
           modified_by: user.id,
         }
       });
@@ -102,7 +167,7 @@ export async function PUT(req: Request, props: { params: Promise<{ id: string }>
     });
 
     // Send email alert asynchronously
-    sendPositionModifiedAlert(updatedPosition, existingPosition.client.company_name, user?.name || "System").catch(e => console.error("Email failed:", e));
+    sendPositionModifiedAlert(updatedPosition, existingPosition, modification_reason, existingPosition.client.company_name, user?.name || "System").catch(e => console.error("Email failed:", e));
 
     return NextResponse.json(updatedPosition);
   } catch (error) {

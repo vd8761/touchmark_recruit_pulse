@@ -71,7 +71,7 @@ export function Sidebar({ isMobile = false, onNavigate }: { isMobile?: boolean, 
         )}
       </div>
       
-      <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4 px-3 overflow-x-hidden">
+      <div className={`flex flex-1 flex-col pt-6 pb-4 px-3 ${collapsed ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden'}`}>
         <nav className="flex-1 space-y-1.5">
           {filteredNavigation.map((item) => {
             const Icon = item.icon;

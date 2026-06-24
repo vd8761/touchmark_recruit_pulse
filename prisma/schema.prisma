@@ -76,6 +76,7 @@ model Position {
   role_name             String
   department            String
   location              String?
+  locations             Json?     // Stores array of { name: string, count: number }
   requested_count       Int
   closed_count          Int       @default(0)
   per_resource_cost     Decimal
@@ -102,6 +103,7 @@ model PositionClosure {
   position_id     String
   position        Position  @relation(fields: [position_id], references: [id])
   closed_count    Int
+  location        String?
   closure_date    DateTime
   closure_details String
   remarks         String?

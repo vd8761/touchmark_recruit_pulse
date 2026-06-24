@@ -1,9 +1,16 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { X, Briefcase, Building2, MapPin, Calendar, CheckCircle2, AlertCircle, Loader2, ArrowRight, Activity, XCircle, FileEdit, Plus, History, Trash2, ExternalLink } from "lucide-react";
+import { X, Briefcase, Building2, MapPin, Calendar as CalendarIcon, CheckCircle2, AlertCircle, Loader2, ArrowRight, Activity, XCircle, FileEdit, Plus, History, Trash2, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { PositionForm } from "./PositionForm";
+import { PositionClosureForm } from "./PositionClosureForm";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Position {
   id: string;
@@ -15,6 +22,7 @@ interface Position {
   role_name: string;
   department: string;
   location?: string | null;
+  locations?: { name: string; count: number }[] | null;
   requested_count: number;
   closed_count: number;
   per_resource_cost: string | number;
@@ -22,7 +30,8 @@ interface Position {
   priority: string;
   status: string;
   expected_joining_date: string;
-  remarks?: string;
+  remarks?: string | null;
+  modification_reason?: string | null;
   created_at: string;
 }
 
@@ -31,6 +40,7 @@ interface PositionClosure {
   closed_count: number;
   closure_date: string;
   closure_details: string;
+  location?: string;
   remarks?: string;
   closer?: { name: string; email: string };
   created_at: string;
@@ -74,18 +84,28 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
   const [isLoadingClientPositions, setIsLoadingClientPositions] = useState(false);
 
   // Close form state
-  const [closeCount, setCloseCount] = useState(1);
-  const [closeDate, setCloseDate] = useState(new Date().toISOString().split('T')[0]);
-  const [closeDetails, setCloseDetails] = useState("");
-  const [closeRemarks, setCloseRemarks] = useState("");
-  const [isSubmittingClose, setIsSubmittingClose] = useState(false);
-  const [closeError, setCloseError] = useState("");
   const [deletingClosureId, setDeletingClosureId] = useState<string | null>(null);
+  const [closureToDelete, setClosureToDelete] = useState<string | null>(null);
+
+  // Local position state for instant progress updates
+  const [localPos, setLocalPos] = useState<Position | null>(null);
+
+  const fetchPosition = async () => {
+    try {
+      const res = await fetch(`/api/positions/${position.id}?t=${Date.now()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLocalPos(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch position data", error);
+    }
+  };
 
   const fetchHistory = async () => {
     setIsLoadingHistory(true);
     try {
-      const res = await fetch(`/api/positions/${position.id}/history`);
+      const res = await fetch(`/api/positions/${position.id}/history?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setClosures(data.closures || []);
@@ -101,7 +121,7 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
   const fetchClientPositions = async () => {
     setIsLoadingClientPositions(true);
     try {
-      const res = await fetch(`/api/positions?client_id=${position.client_id}`);
+      const res = await fetch(`/api/positions?client_id=${position.client_id}&t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setClientPositions(data.filter((p: any) => p.id !== position.id));
@@ -118,6 +138,8 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
       setActiveTab("overview");
       setIsEditing(false);
       setIsClosing(false);
+      setLocalPos(null);
+      fetchPosition();
       fetchHistory();
       fetchClientPositions();
     }
@@ -125,43 +147,17 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
 
   if (!isOpen) return null;
 
-  const handleCloseSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmittingClose(true);
-    setCloseError("");
+  const currentPos = localPos || position;
 
-    try {
-      const res = await fetch(`/api/positions/${position.id}/close`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          closed_count: closeCount,
-          closure_date: closeDate,
-          closure_details: closeDetails,
-          remarks: closeRemarks
-        })
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to log closure");
-      }
-
-      setIsClosing(false);
-      setCloseCount(1);
-      setCloseDetails("");
-      setCloseRemarks("");
-      onRefresh(); // Refresh parent list
-      fetchHistory(); // Refresh inner history
-    } catch (err: any) {
-      setCloseError(err.message);
-    } finally {
-      setIsSubmittingClose(false);
-    }
-  };
 
   const handleDeleteClosure = async (closureId: string) => {
-    if (!confirm("Are you sure you want to delete this closure? The position fulfillment count will be updated.")) return;
+    setClosureToDelete(closureId);
+  };
+
+  const confirmDeleteClosure = async () => {
+    if (!closureToDelete) return;
+    const closureId = closureToDelete;
+
 
     setDeletingClosureId(closureId);
     try {
@@ -171,6 +167,7 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
       if (res.ok) {
         onRefresh();
         fetchHistory();
+        fetchPosition();
       } else {
         alert("Failed to delete closure");
       }
@@ -178,6 +175,7 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
       alert("Error deleting closure");
     } finally {
       setDeletingClosureId(null);
+      setClosureToDelete(null);
     }
   };
 
@@ -192,16 +190,17 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Open": return "bg-green-100 text-green-800 border-green-200";
-      case "Closed": return "bg-slate-100 text-slate-800 border-slate-200";
-      case "On Hold": return "bg-amber-100 text-amber-800 border-amber-200";
-      case "Partially Closed": return "bg-emerald-100 text-emerald-800 border-emerald-200";
-      case "Cancelled": return "bg-red-100 text-red-800 border-red-200";
-      default: return "bg-slate-100 text-slate-800 border-slate-200";
+      case "Open": return "bg-blue-50 text-blue-700 border-blue-200/60";
+      case "Partially Closed": return "bg-amber-50 text-amber-700 border-amber-200/60";
+      case "Closed": return "bg-emerald-50 text-emerald-700 border-emerald-200/60";
+      case "On Hold": return "bg-purple-50 text-purple-700 border-purple-200/60";
+      case "Cancelled": return "bg-red-50 text-red-700 border-red-200/60";
+      default: return "bg-slate-50 text-slate-700 border-slate-200/60";
     }
   };
 
-  const fulfillmentPercentage = Math.min(100, Math.round((position.closed_count / position.requested_count) * 100));
+  const fulfillmentPercentage = Math.min(100, Math.round((currentPos.closed_count / currentPos.requested_count) * 100));
+  const isMultiLocation = Array.isArray(currentPos.locations) && currentPos.locations.length > 0;
 
   return (
     <>
@@ -216,7 +215,7 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
             onRefresh();
             fetchHistory();
           }}
-          initialData={position as any} 
+          initialData={currentPos as any} 
         />
       )}
       <div className={`fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity ${isEditing ? 'opacity-0 pointer-events-none' : ''}`} onClick={onClose} />
@@ -233,28 +232,36 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
               <Briefcase className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{position.role_name}</h2>
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{currentPos.role_name}</h2>
               <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
-                <Link href={`/clients/${position.client_id}`} className="flex items-center gap-1.5 text-slate-600 font-medium hover:text-blue-600 transition-colors group">
+                <Link href={`/clients/${currentPos.client_id}`} className="flex items-center gap-1.5 text-slate-600 font-medium hover:text-blue-600 transition-colors group">
                   <Building2 className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
-                  {position.client.company_name}
+                  {currentPos.client?.company_name || "Unknown Client"}
                   <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </Link>
-                {position.location && (
+                {currentPos.locations && Array.isArray(currentPos.locations) && currentPos.locations.length > 0 ? (
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <span className="flex flex-wrap items-center gap-1.5 text-slate-600 font-medium">
+                      <MapPin className="w-4 h-4 text-slate-400" />
+                      {currentPos.locations.map((l: any) => `${l.name} (${l.count})`).join(', ')}
+                    </span>
+                  </>
+                ) : currentPos.location && (
                   <>
                     <span className="text-slate-300">•</span>
                     <span className="flex items-center gap-1.5 text-slate-600 font-medium">
                       <MapPin className="w-4 h-4 text-slate-400" />
-                      {position.location}
+                      {currentPos.location}
                     </span>
                   </>
                 )}
                 <span className="text-slate-300">•</span>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[12px] font-bold border ${getStatusColor(position.status)}`}>
-                  {position.status}
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[12px] font-bold border ${getStatusColor(currentPos.status)}`}>
+                  {currentPos.status}
                 </span>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[12px] font-bold border ${getPriorityColor(position.priority)}`}>
-                  {position.priority} Priority
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[12px] font-bold border ${getPriorityColor(currentPos.priority)}`}>
+                  {currentPos.priority} Priority
                 </span>
               </div>
             </div>
@@ -310,17 +317,22 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
                 </div>
                 
                 <div className="grid grid-cols-2 gap-px bg-slate-100">
-                  <div className="bg-white p-5">
+                  <div className="bg-white p-5 col-span-2 sm:col-span-1">
                     <p className="text-[13px] font-medium text-slate-500 mb-1">Department</p>
-                    <p className="font-semibold text-slate-900">{position.department}</p>
+                    <p className="font-semibold text-slate-900">{currentPos.department}</p>
                   </div>
-                  <div className="bg-white p-5">
-                    <p className="text-[13px] font-medium text-slate-500 mb-1">Fulfillment (Closed / Requested)</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <p className="font-bold text-slate-900">{position.closed_count} <span className="text-slate-400 font-medium">/ {position.requested_count} Resources</span></p>
-                      {position.closed_count > 0 && (
-                        <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                          {Math.round((position.closed_count / position.requested_count) * 100)}%
+                  <div className="bg-white p-5 col-span-2 sm:col-span-1">
+                    <p className="text-[13px] font-medium text-slate-500 mb-1">Status</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
+                          style={{ width: `${fulfillmentPercentage}%` }}
+                        />
+                      </div>
+                      {currentPos.requested_count > 0 && (
+                        <span className="text-xs font-bold text-slate-600">
+                          {Math.round((currentPos.closed_count / currentPos.requested_count) * 100)}%
                         </span>
                       )}
                     </div>
@@ -329,43 +341,51 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
                     <>
                       <div className="bg-white p-5">
                         <p className="text-[13px] font-medium text-slate-500 mb-1">Cost Per Resource</p>
-                        <p className="font-semibold text-slate-900">{position.per_resource_cost}</p>
+                        <p className="font-semibold text-slate-900">{currentPos.per_resource_cost}</p>
                       </div>
                       <div className="bg-white p-5">
                         <p className="text-[13px] font-medium text-slate-500 mb-1">Billing Slab</p>
-                        <p className="font-semibold text-slate-900">{position.billing_slab}</p>
+                        <p className="font-semibold text-slate-900">{currentPos.billing_slab}</p>
                       </div>
                     </>
                   )}
                   <div className="bg-white p-5 col-span-2">
                     <p className="text-[13px] font-medium text-slate-500 mb-1">Expected Joining Date</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Calendar className="w-4 h-4 text-amber-500" />
-                      <p className="font-semibold text-slate-900">{format(new Date(position.expected_joining_date), "MMMM d, yyyy")}</p>
+                      <CalendarIcon className="w-4 h-4 text-amber-500" />
+                      <p className="font-semibold text-slate-900">{format(new Date(currentPos.expected_joining_date), "MMMM d, yyyy")}</p>
                     </div>
                   </div>
-                  {position.remarks && (
+                  {currentPos.remarks && (
                     <div className="bg-white p-5 col-span-2">
                       <p className="text-[13px] font-medium text-slate-500 mb-1">Initial Remarks</p>
-                      <p className="text-slate-700 text-sm">{position.remarks}</p>
+                      <p className="text-slate-700 text-sm">{currentPos.remarks}</p>
+                    </div>
+                  )}
+                  {currentPos.modification_reason && (
+                    <div className="bg-amber-50 p-5 col-span-2 border border-amber-100 rounded-b-xl">
+                      <p className="text-[13px] font-bold text-amber-900 mb-1">Latest Modification Reason</p>
+                      <p className="text-amber-800 text-sm">{currentPos.modification_reason}</p>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Cross-Module Relational Context (Client Snapshot) */}
-              <div className="bg-gradient-to-br from-[#0B132B] to-[#1a2952] rounded-2xl p-6 text-white shadow-md relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-                <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Building2 className="w-4 h-4 text-amber-400" />
-                    <h3 className="font-semibold text-[15px] text-white">Client Context</h3>
+              {currentPos.client && (
+                <div className="bg-gradient-to-br from-[#0B132B] to-[#1a2952] rounded-2xl p-6 text-white shadow-md relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Building2 className="w-4 h-4 text-amber-400" />
+                      <h3 className="font-semibold text-[15px] text-white">Client Context</h3>
+                    </div>
+                    <p className="text-slate-300 text-sm leading-relaxed max-w-md mt-2">
+                      This position belongs to <strong className="text-white">{currentPos.client.company_name}</strong>. You can view all of their active and historical positions in the Clients module.
+                    </p>
                   </div>
-                  <p className="text-slate-300 text-sm leading-relaxed max-w-md mt-2">
-                    This position belongs to <strong className="text-white">{position.client.company_name}</strong>. You can view all of their active and historical positions in the Clients module.
-                  </p>
                 </div>
-              </div>
+              )}
 
             </div>
           )}
@@ -381,20 +401,47 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
                     <h3 className="font-semibold text-slate-800 text-[16px]">Fulfillment Progress</h3>
                     <p className="text-slate-500 text-sm mt-0.5">Track how many resources have been onboarded</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-slate-900 tracking-tight">{position.closed_count} <span className="text-xl text-slate-400 font-medium">/ {position.requested_count}</span></p>
-                  </div>
+                  {!isMultiLocation && (
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-slate-900 tracking-tight">{currentPos.closed_count} <span className="text-xl text-slate-400 font-medium">/ {currentPos.requested_count}</span></p>
+                    </div>
+                  )}
                 </div>
                 
-                <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
-                    style={{ width: `${fulfillmentPercentage}%` }}
-                  />
-                </div>
+                {isMultiLocation ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-100">
+                      <span className="text-sm font-medium text-slate-500">Total Progress:</span>
+                      <span className="text-sm font-bold text-slate-900">{currentPos.closed_count} / {currentPos.requested_count}</span>
+                    </div>
+                    {(currentPos.locations as any[]).map((loc: any, idx: number) => {
+                      const locClosed = loc.closed_count || 0;
+                      const locRequested = loc.count || 0;
+                      const locPct = Math.min(100, Math.round((locClosed / locRequested) * 100));
+                      return (
+                        <div key={idx}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[13px] font-semibold text-slate-700">{loc.name}</span>
+                            <span className="text-[13px] font-bold text-slate-900">{locClosed} <span className="text-slate-400 font-medium">/ {locRequested}</span></span>
+                          </div>
+                          <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500 rounded-full transition-all duration-1000" style={{ width: `${locPct}%` }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
+                      style={{ width: `${fulfillmentPercentage}%` }}
+                    />
+                  </div>
+                )}
                 
                 <div className="mt-6 flex justify-end">
-                  {position.closed_count < position.requested_count ? (
+                  {currentPos.closed_count < currentPos.requested_count ? (
                     canAddClosure && (
                       <button 
                         onClick={() => setIsClosing(!isClosing)}
@@ -415,71 +462,15 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
 
               {/* Closure Form */}
               {isClosing && (
-                <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-6 animate-in slide-in-from-top-4">
-                  <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-blue-600" />
-                    Record New Fulfillments
-                  </h4>
-                  <form onSubmit={handleCloseSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">Number of Resources</label>
-                        <input 
-                          type="number" 
-                          min={1} 
-                          max={position.requested_count - position.closed_count}
-                          value={closeCount}
-                          onChange={e => setCloseCount(parseInt(e.target.value))}
-                          className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">Date</label>
-                        <input 
-                          type="date" 
-                          value={closeDate}
-                          onChange={e => setCloseDate(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">Candidate / Closure Details *</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. Onboarded John Doe & Jane Smith"
-                        value={closeDetails}
-                        onChange={e => setCloseDetails(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">Remarks (Optional)</label>
-                      <textarea 
-                        value={closeRemarks}
-                        onChange={e => setCloseRemarks(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 resize-none"
-                        rows={2}
-                      />
-                    </div>
-                    {closeError && (
-                      <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm font-medium rounded-xl">
-                        {closeError}
-                      </div>
-                    )}
-                    <div className="flex justify-end pt-2">
-                      <button 
-                        type="submit" 
-                        disabled={isSubmittingClose}
-                        className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-slate-800 transition-colors disabled:opacity-50"
-                      >
-                        {isSubmittingClose ? 'Saving...' : 'Save Closure'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
+                <PositionClosureForm 
+                  position={currentPos}
+                  onSuccess={() => {
+                    setIsClosing(false);
+                    fetchPosition();
+                    onRefresh();
+                    fetchHistory();
+                  }}
+                />
               )}
 
               {/* Closure List */}
@@ -505,6 +496,12 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
                           <div className="flex items-center justify-between">
                             <h5 className="font-bold text-slate-900">{closure.closed_count} Resource{closure.closed_count > 1 ? 's' : ''} Closed</h5>
                             <div className="flex items-center gap-2">
+                              {closure.location && (
+                                <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {closure.location}
+                                </span>
+                              )}
                               <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-1 rounded-md">
                                 {format(new Date(closure.closure_date), "MMM d, yyyy")}
                               </span>
@@ -567,8 +564,9 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold ${isCreate ? 'bg-green-100 text-green-700' : isClose ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
                                 {log.action}
                               </span>
-                              <span className="text-[12px] font-semibold text-slate-400">
-                                {format(new Date(log.timestamp), "MMM d, yyyy HH:mm")}
+                              <span className="text-[12px] font-semibold text-slate-400 flex items-center gap-1.5">
+                                <CalendarIcon className="w-3 h-3" />
+                                {format(new Date(log.timestamp), "MMM d, yyyy 'at' h:mm a")}
                               </span>
                             </div>
                             {log.reason && (
@@ -593,15 +591,15 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
           )}
 
           {/* TAB: OTHER POSITIONS */}
-          {activeTab === "other_positions" && (
+          {activeTab === "other_positions" && currentPos.client && (
             <div className="animate-in fade-in slide-in-from-bottom-2">
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                   <h3 className="font-semibold text-slate-800 text-[16px] flex items-center gap-2">
                     <Briefcase className="w-5 h-5 text-blue-500" />
-                    Other Positions at {position.client.company_name}
+                    Other Positions at {currentPos.client.company_name}
                   </h3>
-                  <Link href={`/clients/${position.client_id}`} className="text-[13px] font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                  <Link href={`/clients/${currentPos.client_id}`} className="text-[13px] font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
                     View Client Profile <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
@@ -637,7 +635,7 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
                           </span>
                           <span className="text-slate-300">•</span>
                           <span className="font-medium text-slate-500 flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" /> {format(new Date(pos.expected_joining_date), "MMM d, yyyy")}
+                            <CalendarIcon className="w-3.5 h-3.5" /> {format(new Date(pos.expected_joining_date), "MMM d, yyyy")}
                           </span>
                         </div>
                       </div>
@@ -650,6 +648,14 @@ export function PositionDetailsSheet({ position, isOpen, onClose, onRefresh, onS
 
         </div>
       </div>
+      <ConfirmDialog
+        open={!!closureToDelete}
+        onOpenChange={(open) => !open && setClosureToDelete(null)}
+        title="Delete Closure"
+        description="Are you sure you want to delete this closure? The position fulfillment count will be updated."
+        onConfirm={confirmDeleteClosure}
+        confirmText="Delete Closure"
+      />
     </>
   );
 }

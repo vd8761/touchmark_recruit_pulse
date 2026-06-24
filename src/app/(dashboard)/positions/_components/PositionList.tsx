@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 import { format } from "date-fns";
+import { MoreVertical } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, Plus, Building2, Briefcase, MapPin, Eye } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -9,6 +17,7 @@ import { useSettings } from "@/providers/SettingsProvider";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { PositionForm } from "./PositionForm";
 import { PositionDetailsSheet } from "./PositionDetailsSheet";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Position {
   id: string;
@@ -19,7 +28,8 @@ interface Position {
   };
   role_name: string;
   department: string;
-  location?: string;
+  location?: string | null;
+  locations?: { name: string; count: number }[] | null;
   requested_count: number;
   closed_count: number;
   per_resource_cost: string | number;
@@ -42,6 +52,7 @@ function PositionListInner() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | undefined>();
   const [preselectedClientId, setPreselectedClientId] = useState<string | undefined>();
+  const [positionToDelete, setPositionToDelete] = useState<string | null>(null);
   const { settings } = useSettings();
   const { data: session } = useSession();
 
@@ -99,12 +110,18 @@ function PositionListInner() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this position?")) return;
+    setPositionToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!positionToDelete) return;
+    const id = positionToDelete;
     
     try {
       const res = await fetch(`/api/positions/${id}`, { method: "DELETE" });
       if (res.ok) {
         setPositions(prev => prev.filter(p => p.id !== id));
+        setPositionToDelete(null);
       }
     } catch (err) {
       console.error("Failed to delete position");
@@ -163,13 +180,13 @@ function PositionListInner() {
           <table className="w-full text-left text-[14px]">
             <thead className="bg-slate-50/50 border-b border-slate-200 text-slate-500">
               <tr>
-                <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider">Role & Company</th>
+                <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider w-[35%] min-w-[280px]">Role & Company</th>
                 {canViewFinancials && (
-                  <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider hidden md:table-cell">Cost & Slab</th>
+                  <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider hidden md:table-cell w-[15%] min-w-[160px]">Cost & Slab</th>
                 )}
-                <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider hidden sm:table-cell text-center">Fulfillment</th>
-                <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider">Status & Priority</th>
-                <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider text-right">Actions</th>
+                <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider hidden sm:table-cell text-center w-[15%] min-w-[160px]">Fulfillment</th>
+                <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider w-[20%] min-w-[150px]">Status & Priority</th>
+                <th className="px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider text-right w-[15%]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -210,14 +227,28 @@ function PositionListInner() {
                     <tr key={position.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="font-bold text-slate-900 text-[15px] mb-0.5">{position.role_name}</div>
-                        <div className="text-slate-500 text-[13px] flex items-center gap-1.5 flex-wrap">
-                          <Building2 className="w-3.5 h-3.5" />
-                          {position.client?.company_name} <span className="text-slate-300">•</span> {position.department}
-                          {position.location && (
+                        <div className="text-slate-500 text-[13px] flex items-center gap-1.5 flex-wrap leading-relaxed">
+                          <span className="font-medium text-slate-700">
+                            <Building2 className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
+                            {position.client?.company_name}
+                          </span>
+                          <span className="text-slate-300">•</span> 
+                          <span>{position.department}</span>
+                          {position.locations && Array.isArray(position.locations) && position.locations.length > 0 ? (
                             <>
                               <span className="text-slate-300">•</span>
-                              <MapPin className="w-3.5 h-3.5" />
-                              {position.location}
+                              <span>
+                                <MapPin className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
+                                {position.locations.map(l => `${l.name} (${l.count})`).join(', ')}
+                              </span>
+                            </>
+                          ) : position.location && (
+                            <>
+                              <span className="text-slate-300">•</span>
+                              <span>
+                                <MapPin className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
+                                {position.location}
+                              </span>
                             </>
                           )}
                         </div>
@@ -227,7 +258,7 @@ function PositionListInner() {
                           <div className="flex items-center gap-1 font-semibold text-slate-900">
                             {formatCurrency(totalCost)}
                           </div>
-                          <div className="text-slate-500 text-[12px] mt-0.5 font-medium">
+                          <div className="text-slate-500 text-[12px] mt-0.5 font-medium whitespace-nowrap">
                             Slab: {position.billing_slab}
                           </div>
                         </td>
@@ -235,7 +266,7 @@ function PositionListInner() {
                       <td className="px-6 py-4 hidden sm:table-cell">
                         <div className="flex items-center justify-center gap-3">
                           <div className="text-right">
-                            <div className="text-[13px] font-bold text-slate-900">{position.closed_count} <span className="text-slate-400 font-medium">/ {position.requested_count}</span></div>
+                            <div className="text-[13px] font-bold text-slate-900 whitespace-nowrap">{position.closed_count} <span className="text-slate-400 font-medium">/ {position.requested_count}</span></div>
                           </div>
                           <div className="w-20 h-2 bg-slate-100 rounded-full overflow-hidden">
                             <div 
@@ -250,7 +281,7 @@ function PositionListInner() {
                         <div className="flex flex-col items-start gap-1.5">
                           {position.status === 'Closed' ? (
                             <div className="flex items-center gap-1.5">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide ${getStatusColor(position.status)}`}>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide whitespace-nowrap ${getStatusColor(position.status)}`}>
                                 Closed
                               </span>
                               {position.updated_at && (
@@ -260,39 +291,37 @@ function PositionListInner() {
                               )}
                             </div>
                           ) : (
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide ${getStatusColor(position.status)}`}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide whitespace-nowrap ${getStatusColor(position.status)}`}>
                               {position.status}
                             </span>
                           )}
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border ${getPriorityColor(position.priority)}`}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border whitespace-nowrap ${getPriorityColor(position.priority)}`}>
                             {position.priority}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleView(position)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-blue-600 rounded-md transition-colors cursor-pointer">
-                            <Eye className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                            <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10">
-                              View Details
-                            </div>
-                          </button>
-                          {canEditPosition && position.status !== 'Closed' && position.status !== 'Cancelled' && (
-                            <button onClick={() => handleEdit(position)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-amber-600 rounded-md transition-colors cursor-pointer">
-                              <FiEdit2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                              <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10">
-                                Edit
-                              </div>
-                            </button>
-                          )}
-                          {canDeletePosition && (
-                            <button onClick={() => handleDelete(position.id)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-red-600 rounded-md transition-colors cursor-pointer">
-                              <FiTrash2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                              <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10">
-                                Delete
-                              </div>
-                            </button>
-                          )}
+                        <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger className="flex items-center justify-center w-8 h-8 text-slate-400 hover:bg-slate-100 hover:text-slate-900 rounded-md transition-colors cursor-pointer outline-none">
+                              <MoreVertical className="w-5 h-5" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40 rounded-[12px] shadow-lg border-slate-200">
+                              <DropdownMenuItem onClick={() => handleView(position)} className="cursor-pointer py-2 text-[13px] font-medium text-slate-700">
+                                <Eye className="w-4 h-4 mr-2 text-blue-600" /> View Details
+                              </DropdownMenuItem>
+                              {canEditPosition && position.status !== 'Closed' && position.status !== 'Cancelled' && (
+                                <DropdownMenuItem onClick={() => handleEdit(position)} className="cursor-pointer py-2 text-[13px] font-medium text-slate-700">
+                                  <FiEdit2 className="w-4 h-4 mr-2 text-amber-600" /> Edit
+                                </DropdownMenuItem>
+                              )}
+                              {canDeletePosition && (
+                                <DropdownMenuItem onClick={() => handleDelete(position.id)} className="cursor-pointer py-2 text-[13px] font-medium text-red-600 focus:text-red-700 focus:bg-red-50">
+                                  <FiTrash2 className="w-4 h-4 mr-2" /> Delete
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </td>
                     </tr>
@@ -320,6 +349,15 @@ function PositionListInner() {
           onRefresh={fetchPositions}
         />
       )}
+
+      <ConfirmDialog
+        open={!!positionToDelete}
+        onOpenChange={(open) => !open && setPositionToDelete(null)}
+        title="Delete Position"
+        description="Are you sure you want to delete this position? This action cannot be undone."
+        onConfirm={confirmDelete}
+        confirmText="Delete"
+      />
     </>
   );
 }

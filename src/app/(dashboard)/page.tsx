@@ -60,10 +60,12 @@ export default async function Dashboard() {
   // Position Metrics
   let totalRequested = 0;
   let totalOpen = 0;
-  let totalClosed = 0;
+  let totalClosedResources = 0;
   let partiallyClosed = 0;
+  let fullyClosed = 0;
   let onHold = 0;
   let cancelled = 0;
+  let totalPendingResources = 0;
 
   // Financial Metrics
   let expectedRevenue = 0;
@@ -95,8 +97,10 @@ export default async function Dashboard() {
     expectedRevenue += expected;
     closedRevenue += closedRev;
 
+    totalClosedResources += pos.closed_count;
+
     if (pos.status === "Closed") {
-      totalClosed++;
+      fullyClosed++;
     } else if (pos.status === "Cancelled") {
       cancelled++;
     } else if (pos.status === "On Hold") {
@@ -107,6 +111,7 @@ export default async function Dashboard() {
       if (pos.closed_count > 0) partiallyClosed++;
       
       const pendingCount = Math.max(0, pos.requested_count - pos.closed_count);
+      totalPendingResources += pendingCount;
       pendingRevenue += pendingCount * cost;
       
       // Chart aggregation
@@ -154,9 +159,9 @@ export default async function Dashboard() {
     },
     { 
       id: 'openings', 
-      name: 'Open Positions', 
-      stat: totalOpen.toString(), 
-      sub: `Out of ${totalRequested} requested`, 
+      name: 'Open Requirements', 
+      stat: totalPendingResources.toString(), 
+      sub: `Across ${totalOpen} active positions`, 
       icon: Briefcase, 
       color: 'text-amber-600', 
       bg: 'bg-amber-50',
@@ -164,9 +169,9 @@ export default async function Dashboard() {
     },
     { 
       id: 'closed', 
-      name: 'Total Closure', 
-      stat: totalClosed.toString(), 
-      sub: `${partiallyClosed} partially closed • ${onHold} on hold`, 
+      name: 'Total Closures', 
+      stat: totalClosedResources.toString(), 
+      sub: `${fullyClosed} fully closed • ${partiallyClosed} partially`, 
       icon: CheckCircle, 
       color: 'text-emerald-600', 
       bg: 'bg-emerald-50',

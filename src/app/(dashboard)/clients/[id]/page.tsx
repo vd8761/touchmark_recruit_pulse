@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import { ClientPositionsTable } from "./_components/ClientPositionsTable";
+import { ClientPageActions } from "./_components/ClientPageActions";
 
 export default async function ClientDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -101,6 +102,7 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
             </div>
           </div>
         </div>
+        <ClientPageActions clientId={client.id} />
       </div>
 
       {/* Analytics Cards */}
@@ -148,25 +150,33 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
         )}
       </div>
 
-      {/* Tabs Section */}
       <Tabs defaultValue="portfolio" className="w-full">
-        <TabsList className="w-full justify-start bg-transparent border-b border-slate-200 rounded-none h-auto p-0 gap-6">
-          <TabsTrigger value="portfolio" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none px-0 py-3 font-semibold text-slate-500 data-[state=active]:text-slate-900">
+        <TabsList variant="line" className="w-full justify-start border-b border-slate-200 gap-8 px-0 h-auto rounded-none">
+          <TabsTrigger 
+            value="portfolio" 
+            className="flex-none border-0 px-1 pb-2.5 pt-1.5 text-[14.5px] font-semibold text-slate-500 transition-colors hover:text-slate-800 data-active:text-amber-600 after:bg-amber-500 after:h-[2px] after:bottom-[-1px]"
+          >
             Positions Portfolio
           </TabsTrigger>
-          <TabsTrigger value="contact" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none px-0 py-3 font-semibold text-slate-500 data-[state=active]:text-slate-900">
+          <TabsTrigger 
+            value="contact" 
+            className="flex-none border-0 px-1 pb-2.5 pt-1.5 text-[14.5px] font-semibold text-slate-500 transition-colors hover:text-slate-800 data-active:text-amber-600 after:bg-amber-500 after:h-[2px] after:bottom-[-1px]"
+          >
             Contact & Details
           </TabsTrigger>
-          <TabsTrigger value="audit" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-amber-500 rounded-none px-0 py-3 font-semibold text-slate-500 data-[state=active]:text-slate-900">
+          <TabsTrigger 
+            value="audit" 
+            className="flex-none border-0 px-1 pb-2.5 pt-1.5 text-[14.5px] font-semibold text-slate-500 transition-colors hover:text-slate-800 data-active:text-amber-600 after:bg-amber-500 after:h-[2px] after:bottom-[-1px]"
+          >
             Audit Log
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="portfolio" className="pt-6">
+        <TabsContent value="portfolio" className="pt-4">
           <ClientPositionsTable client={JSON.parse(JSON.stringify(client))} />
         </TabsContent>
 
-        <TabsContent value="contact" className="pt-6">
+        <TabsContent value="contact" className="pt-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-white p-5 rounded-[12px] border border-slate-200 shadow-sm flex items-start gap-4">
               <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg"><Mail className="w-5 h-5"/></div>
@@ -192,7 +202,7 @@ export default async function ClientDetailsPage({ params }: { params: Promise<{ 
           </div>
         </TabsContent>
 
-        <TabsContent value="audit" className="pt-6">
+        <TabsContent value="audit" className="pt-4">
           <div className="bg-white rounded-[12px] border border-slate-200 shadow-sm p-6">
             <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
               {auditLogs.map((log) => (

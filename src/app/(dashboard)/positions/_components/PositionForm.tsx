@@ -82,6 +82,7 @@ export function PositionForm({
   const [submitAction, setSubmitAction] = useState<"save" | "save_and_add">("save");
   const [clientComboboxOpen, setClientComboboxOpen] = useState(false);
   const [isMultiLocation, setIsMultiLocation] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
   const { settings } = useSettings();
   const { data: session } = useSession();
@@ -153,10 +154,18 @@ export function PositionForm({
     if (open) {
       if (initialData) {
         // We are editing
+        const hasLocations = initialData.locations && Array.isArray(initialData.locations) && initialData.locations.length > 0;
+        setIsMultiLocation(hasLocations);
+
         setValue("client_id", initialData.client_id);
         setValue("role_name", initialData.role_name);
         setValue("department", initialData.department);
         setValue("location", initialData.location || "");
+        if (hasLocations) {
+          setValue("locations", initialData.locations);
+        } else {
+          setValue("locations", [{ name: initialData.location || "", count: initialData.requested_count }]);
+        }
         setValue("requested_count", initialData.requested_count);
         setValue("per_resource_cost", Number(initialData.per_resource_cost));
         setValue("billing_slab", initialData.billing_slab);
@@ -350,18 +359,27 @@ export function PositionForm({
                   <label className="block text-[14px] font-semibold text-slate-800 tracking-tight">Location <span className="text-red-600 font-bold">*</span></label>
                   <div className="flex items-center justify-between">
                     <label className="block text-[14px] font-semibold text-slate-800 tracking-tight">Resource Count <span className="text-red-600 font-bold">*</span></label>
-                    {!initialData && (
-                      <div className="flex items-center gap-2 text-[13px] font-medium text-slate-600">
-                        <span>Multiple Locations</span>
-                        <button 
-                          type="button" 
-                          onClick={() => setIsMultiLocation(!isMultiLocation)}
-                          className={`w-9 h-5 rounded-full relative transition-colors ${isMultiLocation ? 'bg-amber-500' : 'bg-slate-300'}`}
-                        >
-                          <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isMultiLocation ? 'translate-x-4' : ''}`} />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 text-[13px] font-medium text-slate-600">
+                      <span>Multiple Locations</span>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          if (!isMultiLocation) {
+                            setValue("locations", [{ name: watch("location") || "", count: watch("requested_count") || 1 }], { shouldValidate: true });
+                          } else {
+                            const firstLoc = watch("locations")?.[0];
+                            if (firstLoc) {
+                              setValue("location", firstLoc.name, { shouldValidate: true });
+                              setValue("requested_count", firstLoc.count || 1, { shouldValidate: true });
+                            }
+                          }
+                          setIsMultiLocation(!isMultiLocation);
+                        }}
+                        className={`w-9 h-5 rounded-full relative transition-colors ${isMultiLocation ? 'bg-amber-500' : 'bg-slate-300'}`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${isMultiLocation ? 'translate-x-4' : ''}`} />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -372,6 +390,7 @@ export function PositionForm({
                         {...register("location")} 
                         placeholder="Location (e.g. New York, Remote)" 
                         className="w-full h-12 rounded-[12px] border border-slate-200/80 px-4 text-[15px] outline-none transition-all shadow-sm focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+                        onFocus={(e) => e.target.select()}
                       />
                     </div>
                     <div>
@@ -380,6 +399,7 @@ export function PositionForm({
                         min="1"
                         {...register("requested_count", { valueAsNumber: true })} 
                         placeholder="Requested Count" 
+                        onFocus={(e) => e.target.select()}
                         className={`w-full h-12 rounded-[12px] border px-4 text-[15px] outline-none transition-all shadow-sm ${errors.requested_count ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-50/30' : 'border-slate-200/80 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 hover:bg-slate-50'}`}
                       />
                     </div>
@@ -397,6 +417,7 @@ export function PositionForm({
                               setValue("locations", newLocs, { shouldValidate: true });
                             }}
                             placeholder="Location (e.g. New York)" 
+                            onFocus={(e) => e.target.select()}
                             className="w-full h-12 rounded-[12px] border border-slate-200/80 px-4 text-[15px] outline-none transition-all shadow-sm focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
                           />
                         </div>
@@ -411,6 +432,7 @@ export function PositionForm({
                               setValue("locations", newLocs, { shouldValidate: true });
                             }}
                             className="w-full h-12 rounded-[12px] border border-slate-200/80 px-4 text-[15px] outline-none transition-all shadow-sm focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10"
+                            onFocus={(e) => e.target.select()}
                           />
                           {locations.length > 1 && (
                             <button 
@@ -447,6 +469,7 @@ export function PositionForm({
                     min="0"
                     {...register("per_resource_cost", { valueAsNumber: true })} 
                     placeholder="0" 
+                    onFocus={(e) => e.target.select()}
                     className={`w-full h-12 rounded-[12px] border px-4 text-[15px] outline-none transition-all shadow-sm ${errors.per_resource_cost ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-red-50/30' : 'border-slate-200/80 bg-slate-50/50 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 hover:bg-slate-50'}`}
                   />
                   {errors.per_resource_cost && <p className="text-[12px] text-red-500 font-medium ml-0.5 mt-1.5">{errors.per_resource_cost.message}</p>}
@@ -541,7 +564,7 @@ export function PositionForm({
               <div className={initialData ? "grid grid-cols-2 gap-4" : "grid grid-cols-1 gap-4"}>
                 <div className="space-y-2.5">
                   <label className="block text-[14px] font-semibold text-slate-800 tracking-tight mb-2.5">Expected Joining Date <span className="text-red-600 font-bold">*</span></label>
-                  <Popover>
+                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                     <PopoverTrigger render={
                       <Button
                         ref={register("expected_joining_date").ref}
@@ -559,13 +582,14 @@ export function PositionForm({
                     <PopoverContent className="w-auto p-0 rounded-[16px] shadow-xl border-slate-200 overflow-hidden" align="start">
                       <Calendar
                         mode="single"
-                        showYearSwitcher
                         selected={watch("expected_joining_date")}
                         onSelect={(date) => {
                           if (date) {
                             setValue("expected_joining_date", date, { shouldValidate: true, shouldDirty: true });
+                            setIsCalendarOpen(false);
                           }
                         }}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                         className="bg-white rounded-[16px]"
                       />
                     </PopoverContent>

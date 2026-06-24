@@ -4,20 +4,29 @@ import { prisma } from "./prisma";
 // Ensure this doesn't crash if the key is missing in development
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-// Helper to get the destination email address
 async function getAlertEmail() {
   const settingsRow = await prisma.appSetting.findUnique({
-    where: { key: "settings" },
+    where: { key: "alertEmailId" },
   });
   
-  if (!settingsRow) return null;
-  
-  try {
-    const parsed = JSON.parse(settingsRow.value);
-    return parsed.alertEmailId || null;
-  } catch (e) {
-    return null;
+  if (!settingsRow || !settingsRow.value) return null;
+  return settingsRow.value;
+}
+
+// Helper to get currency settings for formatting emails
+async function getCurrencySettings() {
+  const settingsRow = await prisma.appSetting.findMany({
+    where: { key: { in: ["currencyCode", "currencyLocale"] } }
+  });
+  let currencyCode = "USD";
+  let currencyLocale = "en-US";
+  if (settingsRow && settingsRow.length > 0) {
+    const codeSetting = settingsRow.find(s => s.key === "currencyCode");
+    const localeSetting = settingsRow.find(s => s.key === "currencyLocale");
+    if (codeSetting?.value) currencyCode = codeSetting.value;
+    if (localeSetting?.value) currencyLocale = localeSetting.value;
   }
+  return { currencyCode, currencyLocale };
 }
 
 // Ensure the sender email is configured, fallback to a standard no-reply format
@@ -56,7 +65,7 @@ function wrapEmailTemplate(content: string, previewText: string = "Touchmark Rec
         <!-- Footer -->
         <div style="padding: 24px 40px; background-color: #f8fafc; border-top: 1px solid #f1f5f9; text-align: center;">
           <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: 500;">
-            &copy; ${new Date().getFullYear()} Touchmark Design. All rights reserved.
+            &copy; ${new Date().getFullYear()} Touchmark Descience. All rights reserved.
           </p>
           <p style="margin: 6px 0 0 0; font-size: 12px; color: #94a3b8;">
             This is an automated message. Please do not reply directly to this email.
@@ -66,6 +75,25 @@ function wrapEmailTemplate(content: string, previewText: string = "Touchmark Rec
       </div>
     </body>
     </html>
+  `;
+}
+
+function buildKeyValueTable(items: { label: string; value: string | number }[]) {
+  const rows = items.map(item => `
+    <tr>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #64748b; font-weight: 600; width: 40%; vertical-align: top;">
+        ${item.label}
+      </td>
+      <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-weight: 500; vertical-align: top;">
+        ${item.value}
+      </td>
+    </tr>
+  `).join("");
+
+  return `
+    <table style="width: 100%; border-collapse: collapse; margin-top: 16px; margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background-color: #fafafa;">
+      ${rows}
+    </table>
   `;
 }
 
@@ -143,12 +171,12 @@ export async function sendClientCreatedAlert(clientName: string, companyName: st
     html: wrapEmailTemplate(`
       <h2>New Client Alert</h2>
       <p>A new client has been added to Touchmark Recruit Pulse.</p>
-      <ul>
-        <li><strong>Company Name:</strong> ${companyName}</li>
-        <li><strong>Primary Contact:</strong> ${clientName}</li>
-        <li><strong>Added By:</strong> ${creatorName}</li>
-      </ul>
-      <p>Log in to the dashboard to view full details.</p>
+      ${buildKeyValueTable([
+        { label: "Company Name", value: companyName },
+        { label: "Primary Contact", value: clientName },
+        { label: "Added By", value: creatorName },
+      ])}
+      <p style="margin-top: 16px;">Log in to the dashboard to view full details.</p>
     `),
   });
 }
@@ -182,6 +210,13 @@ export async function sendPositionCreatedAlert(position: any, clientName: string
   if (isHighPriority) tags.push(`🔥 ${position.priority} Priority`);
   if (isHighBudget) tags.push("💰 High Budget");
 
+  const { currencyCode, currencyLocale } = await getCurrencySettings();
+  const formattedCost = new Intl.NumberFormat(currencyLocale, {
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits: 0
+  }).format(position.per_resource_cost || 0);
+
   await resend.emails.send({
     from: FROM_EMAIL,
     to,
@@ -189,14 +224,14 @@ export async function sendPositionCreatedAlert(position: any, clientName: string
     html: wrapEmailTemplate(`
       <h2>New Position Alert ${tags.length > 0 ? '(' + tags.join(', ') + ')' : ''}</h2>
       <p>A new position has been opened for <strong>${clientName}</strong>.</p>
-      <ul>
-        <li><strong>Role:</strong> ${position.role_name}</li>
-        <li><strong>Department:</strong> ${position.department}</li>
-        <li><strong>Requested Resources:</strong> ${position.requested_count}</li>
-        <li><strong>Budget:</strong> ${position.per_resource_cost} (${position.billing_slab})</li>
-        <li><strong>Created By:</strong> ${creatorName}</li>
-      </ul>
-      <p>Please review the priority and fulfillment schedule in the dashboard.</p>
+      ${buildKeyValueTable([
+        { label: "Role", value: position.role_name },
+        { label: "Department", value: position.department },
+        { label: "Requested Resources", value: position.requested_count },
+        { label: "Per Resource Cost", value: `${formattedCost} (${position.billing_slab})` },
+        { label: "Created By", value: creatorName },
+      ])}
+      <p style="margin-top: 16px;">Please review the priority and fulfillment schedule in the dashboard.</p>
     `),
   });
 }
@@ -213,13 +248,13 @@ export async function sendResourceClosedAlert(position: any, closedCount: number
     html: wrapEmailTemplate(`
       <h2>Fulfillment Update</h2>
       <p><strong>${closerName}</strong> has just logged a closure for the <strong>${position.role_name}</strong> position.</p>
-      <ul>
-        <li><strong>Resources Closed:</strong> ${closedCount}</li>
-        <li><strong>Details:</strong> ${closureDetails}</li>
-        <li><strong>Current Progress:</strong> ${position.closed_count} / ${position.requested_count} Resources</li>
-        <li><strong>Status:</strong> ${position.status}</li>
-      </ul>
-      ${position.status === "Closed" ? "<h3>🎉 This position is now fully closed!</h3>" : ""}
+      ${buildKeyValueTable([
+        { label: "Resources Closed", value: closedCount },
+        { label: "Details", value: closureDetails },
+        { label: "Current Progress", value: `${position.closed_count} / ${position.requested_count} Resources` },
+        { label: "Status", value: position.status },
+      ])}
+      ${position.status === "Closed" ? "<h3 style='color: #059669; background: #ecfdf5; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #a7f3d0;'>🎉 This position is now fully closed!</h3>" : ""}
     `),
   });
 }
@@ -283,10 +318,69 @@ export async function sendClientDeletedAlert(companyName: string, deleterName: s
   });
 }
 
-export async function sendPositionModifiedAlert(position: any, clientName: string, modifierName: string = "System") {
+export async function sendPositionModifiedAlert(
+  position: any, 
+  existingPosition: any, 
+  remarks: string, 
+  clientName: string, 
+  modifierName: string = "System"
+) {
   if (!resend) return console.warn("RESEND_API_KEY not set. Skipping Position Modified email.");
   const to = await getAlertEmail();
   if (!to) return console.warn("No alert email configured in settings. Skipping email.");
+
+  const { currencyCode, currencyLocale } = await getCurrencySettings();
+  const formattedCost = new Intl.NumberFormat(currencyLocale, {
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits: 0
+  }).format(position.per_resource_cost || 0);
+
+  let locationsHtml = "";
+  const isMultiLocation = Array.isArray(position.locations) && position.locations.length > 0;
+  if (isMultiLocation) {
+    locationsHtml = `
+      <div style="margin-top: 16px; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #334155;">Location-Based Requirements</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead>
+            <tr>
+              <th style="text-align: left; padding: 8px; border-bottom: 1px solid #cbd5e1; color: #475569;">Location</th>
+              <th style="text-align: center; padding: 8px; border-bottom: 1px solid #cbd5e1; color: #475569;">Previous Need</th>
+              <th style="text-align: center; padding: 8px; border-bottom: 1px solid #cbd5e1; color: #475569;">New Need</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${position.locations.map((loc: any) => {
+              const oldLoc = Array.isArray(existingPosition.locations) 
+                ? existingPosition.locations.find((l: any) => l.name === loc.name) 
+                : null;
+              const oldCount = oldLoc ? oldLoc.count : 0;
+              const newCount = loc.count;
+              const diffHtml = oldCount === newCount 
+                ? `<span style="color: #64748b;">${newCount}</span>`
+                : `<span style="color: ${newCount > oldCount ? '#059669' : '#dc2626'}; font-weight: bold;">${newCount}</span>`;
+              
+              return `
+                <tr>
+                  <td style="padding: 8px; border-bottom: 1px solid #f1f5f9;"><strong>${loc.name}</strong></td>
+                  <td style="padding: 8px; border-bottom: 1px solid #f1f5f9; text-align: center; color: #64748b;">${oldCount || 'N/A'}</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #f1f5f9; text-align: center;">${diffHtml}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  const remarksHtml = remarks ? `
+    <div style="margin-top: 16px; background: #fffbeb; padding: 16px; border-radius: 8px; border: 1px solid #fde68a;">
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #b45309;">Modification Remarks</h3>
+      <p style="margin: 0; color: #78350f; font-size: 13px; font-style: italic;">"${remarks}"</p>
+    </div>
+  ` : "";
 
   await resend.emails.send({
     from: FROM_EMAIL,
@@ -295,13 +389,15 @@ export async function sendPositionModifiedAlert(position: any, clientName: strin
     html: wrapEmailTemplate(`
       <h2>Position Update Alert</h2>
       <p>The details for the <strong>${position.role_name}</strong> position at <strong>${clientName}</strong> were updated by ${modifierName}.</p>
-      <ul>
-        <li><strong>Status:</strong> ${position.status}</li>
-        <li><strong>Requested Resources:</strong> ${position.requested_count}</li>
-        <li><strong>Budget:</strong> ${position.per_resource_cost} (${position.billing_slab})</li>
-        <li><strong>Priority:</strong> ${position.priority}</li>
-      </ul>
-      <p>Log in to the dashboard to view the full changes.</p>
+      ${buildKeyValueTable([
+        { label: "Status", value: existingPosition.status !== position.status ? `${existingPosition.status} ➔ ${position.status}` : position.status },
+        { label: "Overall Resources", value: existingPosition.requested_count !== position.requested_count ? `${existingPosition.requested_count} ➔ ${position.requested_count}` : position.requested_count },
+        { label: "Per Resource Cost", value: `${formattedCost} (${position.billing_slab})` },
+        { label: "Priority", value: existingPosition.priority !== position.priority ? `${existingPosition.priority} ➔ ${position.priority}` : position.priority },
+      ])}
+      ${locationsHtml}
+      ${remarksHtml}
+      <p style="margin-top: 16px;">Log in to the dashboard to view the full changes.</p>
     `),
   });
 }

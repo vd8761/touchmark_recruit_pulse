@@ -1,9 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, ShieldCheck, ShieldAlert, Mail, Lock, Unlock, Edit, Trash2, Loader2, KeyRound } from "lucide-react";
+import { Plus, Search, ShieldCheck, ShieldAlert, Mail, Lock, Unlock, Edit, Trash2, Loader2, KeyRound, MoreVertical } from "lucide-react";
 import { format } from "date-fns";
 import { UserFormModal } from "./UserFormModal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type User = {
   id: string;
@@ -25,6 +32,7 @@ export function UserList({ currentUserRole }: { currentUserRole: string }) {
   const [search, setSearch] = useState("");
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const fetchData = async () => {
@@ -49,7 +57,12 @@ export function UserList({ currentUserRole }: { currentUserRole: string }) {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
+    setUserToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    const id = userToDelete;
     
     try {
       const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
@@ -60,6 +73,8 @@ export function UserList({ currentUserRole }: { currentUserRole: string }) {
       }
     } catch (error) {
       console.error(error);
+    } finally {
+      setUserToDelete(null);
     }
   };
 
@@ -173,21 +188,20 @@ export function UserList({ currentUserRole }: { currentUserRole: string }) {
                     {user.last_login ? format(new Date(user.last_login), 'PP p') : 'Never'}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => { setSelectedUser(user); setIsModalOpen(true); }}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                        title="Edit User"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                        title="Delete User"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="flex items-center justify-center w-8 h-8 text-slate-400 hover:bg-slate-100 hover:text-slate-900 rounded-md transition-colors cursor-pointer outline-none">
+                          <MoreVertical className="w-5 h-5" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36 rounded-[12px] shadow-lg border-slate-200">
+                          <DropdownMenuItem onClick={() => { setSelectedUser(user); setIsModalOpen(true); }} className="cursor-pointer py-2 text-[13px] font-medium text-slate-700">
+                            <Edit className="w-4 h-4 mr-2 text-amber-600" /> Edit User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDelete(user.id)} className="cursor-pointer py-2 text-[13px] font-medium text-red-600 focus:text-red-700 focus:bg-red-50">
+                            <Trash2 className="w-4 h-4 mr-2" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </td>
                 </tr>
@@ -205,6 +219,15 @@ export function UserList({ currentUserRole }: { currentUserRole: string }) {
           onSuccess={() => { setIsModalOpen(false); fetchData(); }} 
         />
       )}
+
+      <ConfirmDialog
+        open={!!userToDelete}
+        onOpenChange={(open) => !open && setUserToDelete(null)}
+        title="Delete User"
+        description="Are you sure you want to delete this user? This action cannot be undone."
+        onConfirm={confirmDelete}
+        confirmText="Delete"
+      />
     </div>
   );
 }

@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Building2, Mail, Phone, MapPin, MoreHorizontal } from "lucide-react";
+import { Loader2, Plus, Building2, Mail, Phone, MoreVertical, Eye } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { ClientForm } from "./ClientForm";
-import { Eye } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -23,6 +29,7 @@ export function ClientList() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [clientToDelete, setClientToDelete] = useState<string | null>(null);
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -65,12 +72,20 @@ export function ClientList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this client?")) return;
+    setClientToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!clientToDelete) return;
+    const id = clientToDelete;
+    
     try {
       await fetch(`/api/clients/${id}`, { method: "DELETE" });
       fetchClients();
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error('Error deleting client:', error);
+    } finally {
+      setClientToDelete(null);
     }
   };
 
@@ -158,29 +173,27 @@ export function ClientList() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleView(client)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 rounded-md transition-colors cursor-pointer">
-                          <Eye className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                          <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10 hidden sm:block">
-                            View Details
-                          </div>
-                        </button>
-                        {canEditClient && (
-                          <button onClick={() => handleEdit(client)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-amber-600 rounded-md transition-colors cursor-pointer">
-                            <FiEdit2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                            <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10 hidden sm:block">
-                              Edit
-                            </div>
-                          </button>
-                        )}
-                        {canDeleteClient && (
-                          <button onClick={() => handleDelete(client.id)} className="relative group/btn flex items-center justify-center w-9 h-9 text-slate-400 hover:bg-slate-100 hover:text-red-600 rounded-md transition-colors cursor-pointer">
-                            <FiTrash2 className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                            <div className="absolute bottom-full mb-1.5 opacity-0 translate-y-1 group-hover/btn:opacity-100 group-hover/btn:translate-y-0 pointer-events-none transition-all duration-200 bg-slate-800 text-white text-[11px] font-bold px-2 py-1 rounded-[6px] shadow-lg whitespace-nowrap z-10 hidden sm:block">
-                              Delete
-                            </div>
-                          </button>
-                        )}
+                      <div className="flex items-center justify-end opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger className="flex items-center justify-center w-8 h-8 text-slate-400 hover:bg-slate-100 hover:text-slate-900 rounded-md transition-colors cursor-pointer outline-none">
+                            <MoreVertical className="w-5 h-5" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40 rounded-[12px] shadow-lg border-slate-200">
+                            <DropdownMenuItem onClick={() => handleView(client)} className="cursor-pointer py-2 text-[13px] font-medium text-slate-700">
+                              <Eye className="w-4 h-4 mr-2 text-indigo-600" /> View Details
+                            </DropdownMenuItem>
+                            {canEditClient && (
+                              <DropdownMenuItem onClick={() => handleEdit(client)} className="cursor-pointer py-2 text-[13px] font-medium text-slate-700">
+                                <FiEdit2 className="w-4 h-4 mr-2 text-amber-600" /> Edit
+                              </DropdownMenuItem>
+                            )}
+                            {canDeleteClient && (
+                              <DropdownMenuItem onClick={() => handleDelete(client.id)} className="cursor-pointer py-2 text-[13px] font-medium text-red-600 focus:text-red-700 focus:bg-red-50">
+                                <FiTrash2 className="w-4 h-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </td>
                   </tr>
@@ -196,6 +209,15 @@ export function ClientList() {
         onOpenChange={setIsFormOpen} 
         onSuccess={fetchClients} 
         initialData={editingClient} 
+      />
+
+      <ConfirmDialog
+        open={!!clientToDelete}
+        onOpenChange={(open) => !open && setClientToDelete(null)}
+        title="Delete Client"
+        description="Are you sure you want to delete this client? All associated positions and history will be permanently removed."
+        onConfirm={confirmDelete}
+        confirmText="Delete Client"
       />
     </div>
   );

@@ -78,58 +78,59 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    // Create the positions and the audit logs in a transaction
+    // Create the position and the audit log in a transaction
     const positionsCreated = await prisma.$transaction(async (tx) => {
-      const created = [];
       const isMultiLocation = Array.isArray(locations) && locations.length > 0;
-      const locList = isMultiLocation ? locations : [{ name: location || null, count: parseInt(requested_count) }];
+      
+      const primaryLocation = isMultiLocation ? locations[0].name : (location || null);
+      const totalRequestedCount = isMultiLocation 
+        ? locations.reduce((sum: number, loc: any) => sum + parseInt(loc.count || 0), 0)
+        : parseInt(requested_count);
 
-      for (const loc of locList) {
-        const newPosition = await tx.position.create({
-          data: {
-            client_id,
-            role_name,
-            department,
-            location: loc.name || null,
-            requested_count: parseInt(loc.count),
-            per_resource_cost: canViewFinancials ? parseFloat(per_resource_cost) : 0,
-            billing_slab: canViewFinancials ? billing_slab : "",
-            priority,
-            expected_joining_date: new Date(expected_joining_date),
-            status: status || "Open",
-            remarks,
-            created_by: user.id,
-          },
-        });
+      const newPosition = await tx.position.create({
+        data: {
+          client_id,
+          role_name,
+          department,
+          location: primaryLocation,
+          locations: isMultiLocation ? locations : undefined,
+          requested_count: totalRequestedCount,
+          per_resource_cost: canViewFinancials ? parseFloat(per_resource_cost) : 0,
+          billing_slab: canViewFinancials ? billing_slab : "",
+          priority,
+          expected_joining_date: new Date(expected_joining_date),
+          status: status || "Open",
+          remarks,
+          created_by: user.id,
+        },
+      });
 
-        // Upsert JobRole and Department dictionaries for autocomplete
-        // Using raw SQL here directly to bypass any Next.js hot-reload cache issues with the newly generated Prisma client models
-        await tx.$executeRawUnsafe(`
-          INSERT INTO "JobRole" (id, name, created_at)
-          VALUES ($1, $2, NOW())
-          ON CONFLICT (name) DO NOTHING;
-        `, crypto.randomUUID(), role_name);
+      // Upsert JobRole and Department dictionaries for autocomplete
+      // Using raw SQL here directly to bypass any Next.js hot-reload cache issues with the newly generated Prisma client models
+      await tx.$executeRawUnsafe(`
+        INSERT INTO "JobRole" (id, name, created_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (name) DO NOTHING;
+      `, crypto.randomUUID(), role_name);
 
-        await tx.$executeRawUnsafe(`
-          INSERT INTO "Department" (id, name, created_at)
-          VALUES ($1, $2, NOW())
-          ON CONFLICT (name) DO NOTHING;
-        `, crypto.randomUUID(), department);
+      await tx.$executeRawUnsafe(`
+        INSERT INTO "Department" (id, name, created_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (name) DO NOTHING;
+      `, crypto.randomUUID(), department);
 
-        await tx.auditLog.create({
-          data: {
-            entity_type: "Position",
-            entity_id: newPosition.id,
-            action: "Create",
-            new_values: newPosition as any,
-            reason: `Created Position: ${role_name} for ${client.company_name} (Location: ${loc.name || 'Not Specified'})`,
-            modified_by: user.id,
-          }
-        });
-        
-        created.push(newPosition);
-      }
-      return created;
+      await tx.auditLog.create({
+        data: {
+          entity_type: "Position",
+          entity_id: newPosition.id,
+          action: "Create",
+          new_values: newPosition as any,
+          reason: `Created Position: ${role_name} for ${client.company_name} (Locations: ${isMultiLocation ? 'Multiple' : (primaryLocation || 'Not Specified')})`,
+          modified_by: user.id,
+        }
+      });
+      
+      return [newPosition];
     });
 
     // Send email alert asynchronously for each created position

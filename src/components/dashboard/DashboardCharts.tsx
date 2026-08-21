@@ -25,7 +25,7 @@ export function RoleOpeningsChart({ data }: { data: any[] }) {
               <Pie
                 data={data}
                 cx="50%"
-                cy="45%"
+                cy="42%"
                 innerRadius={60}
                 outerRadius={90}
                 paddingAngle={5}
@@ -36,7 +36,7 @@ export function RoleOpeningsChart({ data }: { data: any[] }) {
                 ))}
               </Pie>
               <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
-              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }} />
+              <Legend verticalAlign="bottom" height={80} iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
             </PieChart>
           </ResponsiveContainer>
         </div>

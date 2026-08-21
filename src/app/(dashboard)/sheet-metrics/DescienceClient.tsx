@@ -82,7 +82,7 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
   const globalPendingCount = data.months.reduce((acc, m) => acc + m.pending.count, 0);
 
   const dynamicAnalytics = useMemo(() => {
-    if (!data.allInvoices) return data.analytics; // Fallback to precomputed
+    if (!data.allInvoices) return { ...data.analytics, outstandingInvoices: [] }; // Fallback to precomputed
 
     const filteredInvoices = selectedMonthId === 'all' 
       ? data.allInvoices 

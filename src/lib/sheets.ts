@@ -34,6 +34,7 @@ function parseWorkforceMetrics(data: any[]) {
     lossDropped: { count: number; value: number };
     atRiskSustenance: { count: number; value: number };
     invoicesGenerated: { count: number; value: number };
+    invoicesPaid: { count: number; value: number };
   }> = {};
 
   data.forEach((row) => {
@@ -57,6 +58,7 @@ function parseWorkforceMetrics(data: any[]) {
           lossDropped: { count: 0, value: 0 },
           atRiskSustenance: { count: 0, value: 0 },
           invoicesGenerated: { count: 0, value: 0 },
+          invoicesPaid: { count: 0, value: 0 },
         };
       }
 
@@ -79,17 +81,23 @@ function parseWorkforceMetrics(data: any[]) {
       const invoiceGeneratedDate = row['Invoice Generated Date'];
       
       const isInvoiceGenerated = invoiceStatus.includes('generated') || invoiceStatus.includes('paid') || !!invoiceGeneratedDate;
+      const isPaid = invoiceStatus.includes('paid') || invoiceStatus.includes('received');
 
       if (isInvoiceGenerated) {
         monthBucket.invoicesGenerated.count++;
         monthBucket.invoicesGenerated.value += budget;
+      }
+      
+      if (isPaid) {
+        monthBucket.invoicesPaid.count++;
+        monthBucket.invoicesPaid.value += budget;
       }
 
       if (terminalStatuses.includes(status)) {
         monthBucket.lossDropped.count++;
         monthBucket.lossDropped.value += budget;
       } else if (status === 'Joined') {
-        if (passedInvoiceDate) {
+        if (passedInvoiceDate || isInvoiceGenerated) {
           monthBucket.profitInvoiced.count++;
           monthBucket.profitInvoiced.value += budget;
         } else {
@@ -104,10 +112,11 @@ function parseWorkforceMetrics(data: any[]) {
   });
 
   const recruiterStats: Record<string, { name: string; pipelineDeals: number; pipelineValue: number; closedDeals: number; closedValue: number }> = {};
-  const clientStats: Record<string, { name: string; deals: number; value: number }> = {};
+  const clientStats: Record<string, { name: string; deals: number; value: number; paidValue: number }> = {};
   const funnelStats: Record<string, number> = {
     'Sourced': 0, 'Screened': 0, 'Submitted to Client': 0, 'Shortlisted': 0, 'Interviewing': 0, 'Offered': 0, 'Offer Accepted': 0, 'Joined': 0
   };
+  const allCandidates: { date: string; candidate: string; company: string; amount: number; status: string; invoiceStatus: string; recruiter: string }[] = [];
 
   data.forEach((row) => {
     const status = row['Candidate Status']?.trim() || '';
@@ -132,15 +141,31 @@ function parseWorkforceMetrics(data: any[]) {
 
     if (status === 'Joined' || status === 'Invoiced') {
       if (!clientStats[company]) {
-        clientStats[company] = { name: company, deals: 0, value: 0 };
+        clientStats[company] = { name: company, deals: 0, value: 0, paidValue: 0 };
       }
       clientStats[company].deals++;
       clientStats[company].value += budget;
+      
+      const invoiceStatus = row['Invoice Status']?.trim() || '';
+      const isPaid = invoiceStatus.toLowerCase().includes('paid') || invoiceStatus.toLowerCase().includes('received');
+      if (isPaid) {
+        clientStats[company].paidValue += budget;
+      }
     }
+    
+    allCandidates.push({
+      date: row['Actual D.O.J'] || row['Invoice Eligibility Date'] || row['Invoice Generated Date'] || '',
+      candidate: row['Candidate Name'] || row['Candidate name'] || row['Name'] || 'Unknown',
+      company,
+      amount: budget,
+      status,
+      invoiceStatus: row['Invoice Status']?.trim() || 'Pending',
+      recruiter
+    });
   });
 
   const sortedMonths = Object.keys(monthlyData)
-    .sort((a, b) => b.localeCompare(a))
+    .sort((a, b) => a.localeCompare(b))
     .map(key => ({
       id: key,
       ...monthlyData[key]
@@ -158,6 +183,7 @@ function parseWorkforceMetrics(data: any[]) {
       clients: topClients,
       funnel: funnelData
     },
+    allCandidates,
     lastUpdated: new Date().toISOString()
   };
 }
@@ -204,18 +230,20 @@ function parseDescienceMetrics(data: any[]) {
     const company = row['Company']?.trim() || 'Unknown';
     const invoiceNo = row['Invoice No']?.trim() || '';
 
+    const monthInfo = getMonthKey(invoiceDateStr);
+
     if (invoiceDateStr && amount > 0) {
       recentInvoices.push({
         date: invoiceDateStr,
+        monthKey: monthInfo ? monthInfo.key : '',
         company,
         amount,
         status,
-        invoiceNo
+        invoiceNo,
+        timestamp: new Date(invoiceDateStr).getTime()
       });
     }
 
-    const monthInfo = getMonthKey(invoiceDateStr);
-    
     if (monthInfo) {
       if (!monthlyData[monthInfo.key]) {
         monthlyData[monthInfo.key] = {
@@ -291,7 +319,7 @@ function parseDescienceMetrics(data: any[]) {
   });
 
   const sortedMonths = Object.keys(monthlyData)
-    .sort((a, b) => b.localeCompare(a))
+    .sort((a, b) => a.localeCompare(b))
     .map(key => ({
       id: key,
       ...monthlyData[key]
@@ -312,6 +340,7 @@ function parseDescienceMetrics(data: any[]) {
 
   return {
     months: sortedMonths,
+    allInvoices: recentInvoices.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)),
     analytics: {
       clients: topClients,
       topDebtors: topDebtors,

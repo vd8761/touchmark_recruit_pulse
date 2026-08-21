@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Activity, FileText, AlertTriangle, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
@@ -23,6 +23,7 @@ type MonthData = {
 
 type MetricsData = {
   months: MonthData[];
+  allInvoices?: { date: string; monthKey: string; company: string; amount: number; status: string; invoiceNo: string; timestamp: number }[];
   analytics: {
     clients: { name: string; billed: number; collected: number; pending: number }[];
     topDebtors: { name: string; billed: number; collected: number; pending: number }[];
@@ -49,9 +50,7 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
     });
   };
 
-  const [selectedMonthId, setSelectedMonthId] = useState<string>(
-    data.months.length > 0 ? data.months[0].id : ''
-  );
+  const [selectedMonthId, setSelectedMonthId] = useState<string>('all');
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat(settings?.currencyLocale || 'en-IN', {
@@ -61,9 +60,112 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
     }).format(val);
   };
 
-  const selectedMonth = data.months.find(m => m.id === selectedMonthId);
-  const globalBilled = data.months.reduce((acc, m) => acc + m.salesBilled.value, 0);
-  const globalBilledCount = data.months.reduce((acc, m) => acc + m.salesBilled.count, 0);
+  const selectedMonth = selectedMonthId === 'all' 
+    ? {
+        id: 'all',
+        monthLabel: 'All Months',
+        salesBilled: { 
+          count: data.months.reduce((acc, m) => acc + m.salesBilled.count, 0), 
+          value: data.months.reduce((acc, m) => acc + m.salesBilled.value, 0) 
+        },
+        collected: { 
+          count: data.months.reduce((acc, m) => acc + m.collected.count, 0), 
+          value: data.months.reduce((acc, m) => acc + m.collected.value, 0) 
+        },
+        pending: { 
+          count: data.months.reduce((acc, m) => acc + m.pending.count, 0), 
+          value: data.months.reduce((acc, m) => acc + m.pending.value, 0) 
+        },
+      }
+    : data.months.find(m => m.id === selectedMonthId);
+  const globalPending = data.months.reduce((acc, m) => acc + m.pending.value, 0);
+  const globalPendingCount = data.months.reduce((acc, m) => acc + m.pending.count, 0);
+
+  const dynamicAnalytics = useMemo(() => {
+    if (!data.allInvoices) return data.analytics; // Fallback to precomputed
+
+    const filteredInvoices = selectedMonthId === 'all' 
+      ? data.allInvoices 
+      : data.allInvoices.filter(inv => inv.monthKey === selectedMonthId);
+
+    const clientStats: Record<string, { name: string; billed: number; collected: number; pending: number }> = {};
+    const agingStats: Record<string, { total: number; invoices: string[] }> = {
+      '0-30 Days': { total: 0, invoices: [] },
+      '31-60 Days': { total: 0, invoices: [] },
+      '60-90 Days': { total: 0, invoices: [] },
+      '90+ Days': { total: 0, invoices: [] }
+    };
+    const clientAgingStats: Record<string, { 
+      name: string; 
+      '0-30 Days': number; '31-60 Days': number; '60-90 Days': number; '90+ Days': number; 
+      totalPending: number; invoices: Record<string, string[]>;
+    }> = {};
+
+    const nowTime = Date.now();
+
+    filteredInvoices.forEach(inv => {
+      const company = inv.company;
+      if (!clientStats[company]) {
+        clientStats[company] = { name: company, billed: 0, collected: 0, pending: 0 };
+      }
+      clientStats[company].billed += inv.amount;
+
+      const isCollected = inv.status.toLowerCase() === 'received' || inv.status.toLowerCase() === 'paid';
+      const isPending = inv.status.toLowerCase() === 'pending' || inv.status.toLowerCase() === 'send' || inv.status.toLowerCase() === 'overdue';
+
+      if (isCollected) {
+        clientStats[company].collected += inv.amount;
+      } else if (isPending) {
+        clientStats[company].pending += inv.amount;
+
+        if (!clientAgingStats[company]) {
+          clientAgingStats[company] = { name: company, '0-30 Days': 0, '31-60 Days': 0, '60-90 Days': 0, '90+ Days': 0, totalPending: 0, invoices: { '0-30 Days': [], '31-60 Days': [], '60-90 Days': [], '90+ Days': [] } };
+        }
+
+        const invDate = new Date(inv.date).getTime();
+        if (!isNaN(invDate)) {
+          const ageDays = (nowTime - invDate) / (1000 * 60 * 60 * 24);
+          let bucket: '0-30 Days' | '31-60 Days' | '60-90 Days' | '90+ Days' = '90+ Days';
+          if (ageDays <= 30) bucket = '0-30 Days';
+          else if (ageDays <= 60) bucket = '31-60 Days';
+          else if (ageDays <= 90) bucket = '60-90 Days';
+
+          agingStats[bucket].total += inv.amount;
+          if (inv.invoiceNo) agingStats[bucket].invoices.push(inv.invoiceNo);
+          clientAgingStats[company][bucket] += inv.amount;
+          if (inv.invoiceNo) clientAgingStats[company].invoices[bucket].push(inv.invoiceNo);
+        }
+      }
+    });
+
+    const topClients = Object.values(clientStats).sort((a, b) => b.billed - a.billed).slice(0, 10);
+    const topDebtors = Object.values(clientStats).sort((a, b) => b.pending - a.pending).slice(0, 10);
+    
+    const clientAging = Object.values(clientAgingStats).map(c => {
+      c.totalPending = c['0-30 Days'] + c['31-60 Days'] + c['60-90 Days'] + c['90+ Days'];
+      return c;
+    }).sort((a, b) => b.totalPending - a.totalPending);
+
+    const agingData = [
+      { name: '0-30 Days', value: agingStats['0-30 Days'].total, invoices: agingStats['0-30 Days'].invoices },
+      { name: '31-60 Days', value: agingStats['31-60 Days'].total, invoices: agingStats['31-60 Days'].invoices },
+      { name: '60-90 Days', value: agingStats['60-90 Days'].total, invoices: agingStats['60-90 Days'].invoices },
+      { name: '90+ Days', value: agingStats['90+ Days'].total, invoices: agingStats['90+ Days'].invoices }
+    ];
+
+    const outstandingInvoices = filteredInvoices
+      .filter(inv => inv.status.toLowerCase() === 'pending' || inv.status.toLowerCase() === 'send' || inv.status.toLowerCase() === 'overdue')
+      .sort((a, b) => b.amount - a.amount); // sort by highest amount
+
+    return {
+      clients: topClients,
+      topDebtors,
+      aging: agingData,
+      clientAging,
+      recentInvoices: filteredInvoices.slice(0, 20),
+      outstandingInvoices
+    };
+  }, [data, selectedMonthId]);
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const now = new Date();
@@ -114,10 +216,13 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
             <Select value={selectedMonthId} onValueChange={(val) => setSelectedMonthId(val || '')}>
               <SelectTrigger className="w-[115px] px-3 bg-slate-50 border-none text-sm font-semibold text-slate-900 focus:ring-0 shadow-none hover:bg-slate-100 transition-colors rounded-md py-1.5 h-auto flex items-center justify-between">
                 <SelectValue placeholder="Select month">
-                  {data.months.find(m => m.id === selectedMonthId)?.monthLabel || "Select month"}
+                  {selectedMonthId === 'all' ? 'All Months' : data.months.find(m => m.id === selectedMonthId)?.monthLabel || "Select month"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200 shadow-lg rounded-xl overflow-hidden">
+                <SelectItem value="all" className="cursor-pointer hover:bg-slate-50 focus:bg-slate-50 focus:text-slate-900 font-bold py-2 border-b border-slate-100">
+                  All Months
+                </SelectItem>
                 {data.months.map((m) => (
                   <SelectItem key={m.id} value={m.id} className="cursor-pointer hover:bg-slate-50 focus:bg-slate-50 focus:text-slate-900 font-medium py-2">
                     {m.monthLabel}
@@ -135,11 +240,11 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
           <Activity className="w-48 h-48" />
         </div>
         <div className="relative z-10">
-          <h2 className="text-sm font-medium text-slate-400 mb-1 tracking-wider uppercase">Global Sales (All-Time)</h2>
+          <h2 className="text-sm font-medium text-slate-400 mb-1 tracking-wider uppercase">Global Outstanding (All-Time)</h2>
           <div className="flex items-end gap-4 mt-2">
-            <div className="text-4xl font-bold text-amber-400">{globalBilledCount} <span className="text-lg font-medium text-slate-300">Invoices</span></div>
+            <div className="text-4xl font-bold text-amber-400">{globalPendingCount} <span className="text-lg font-medium text-slate-300">Invoices</span></div>
             <div className="h-8 w-[1px] bg-slate-700 mx-2 hidden sm:block"></div>
-            <div className="text-3xl font-bold text-white">{formatCurrency(globalBilled)} <span className="text-lg font-medium text-slate-300">Total Billed</span></div>
+            <div className="text-3xl font-bold text-white">{formatCurrency(globalPending)} <span className="text-lg font-medium text-slate-300">Total Outstanding</span></div>
           </div>
         </div>
       </div>
@@ -252,17 +357,18 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
             <CardContent className="pt-2">
               <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.analytics.clients} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={dynamicAnalytics.clients} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                   <XAxis type="number" tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12, fontWeight: 500, fill: '#334155' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12, fontWeight: 500, fill: '#334155' }} axisLine={false} tickLine={false} />
                   <Tooltip
                     formatter={(value: any) => formatCurrency(Number(value))}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
                     cursor={{ fill: '#f8fafc' }}
                   />
                   <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                  <Bar dataKey="billed" name="Total Revenue Billed" fill="#0B132B" maxBarSize={24} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="billed" fill="#0B132B" name="Billed Amount" maxBarSize={32} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="collected" fill="#10B981" name="Collected Amount" maxBarSize={32} radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
               </div>
@@ -329,9 +435,9 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
             </CardHeader>
             <CardContent className="pt-2">
               <div className="h-[350px] w-full">
-                {data.analytics.clientAging.length > 0 ? (
+                {dynamicAnalytics.clientAging.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.analytics.clientAging} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <BarChart data={dynamicAnalytics.clientAging} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                       <XAxis type="number" tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
                       <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12, fontWeight: 500, fill: '#334155' }} axisLine={false} tickLine={false} />
@@ -391,11 +497,11 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
               <CardDescription>How long have invoices been unpaid?</CardDescription>
             </CardHeader>
             <CardContent className="h-[350px]">
-              {data.analytics.aging.length > 0 ? (
+              {dynamicAnalytics.aging.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={data.analytics.aging}
+                      data={dynamicAnalytics.aging}
                       cx="50%"
                       cy="50%"
                       innerRadius={65}
@@ -404,7 +510,7 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
                       dataKey="value"
                       stroke="none"
                     >
-                      {data.analytics.aging.map((entry, index) => {
+                      {dynamicAnalytics.aging.map((entry, index) => {
                         // color coding by age severity
                         const colors: Record<string, string> = {
                           '0-30 Days': '#10B981', // green
@@ -456,6 +562,68 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
         </div>
       </div>
 
+      {/* Outstanding Invoices Section */}
+      <div className="mb-8">
+        <Card className="w-full border-amber-200 shadow-sm">
+          <CardHeader className="bg-amber-50/50 border-b border-amber-100 rounded-t-xl pb-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-amber-900 flex items-center gap-2 text-base font-bold">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  Outstanding Invoice Details
+                </CardTitle>
+                <CardDescription className="text-amber-700 mt-1">Pending invoices sorted by highest amount. Filters automatically by selected month.</CardDescription>
+              </div>
+              <div className="bg-white px-3 py-1 rounded-full border border-amber-200 text-sm font-bold text-amber-700 shadow-sm whitespace-nowrap self-start md:self-auto">
+                {dynamicAnalytics.outstandingInvoices?.length || 0} Invoices
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto max-h-[400px] overflow-y-auto custom-scrollbar">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0 z-10 shadow-sm">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold">Date</th>
+                    <th className="px-6 py-4 font-semibold">Invoice No</th>
+                    <th className="px-6 py-4 font-semibold">Company</th>
+                    <th className="px-6 py-4 font-semibold text-right">Outstanding Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {dynamicAnalytics.outstandingInvoices && dynamicAnalytics.outstandingInvoices.length > 0 ? (
+                    dynamicAnalytics.outstandingInvoices.map((inv, idx) => (
+                      <tr key={idx} className="hover:bg-amber-50/30 transition-colors">
+                        <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
+                          {new Date(inv.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="px-6 py-4 font-medium text-slate-900">{inv.invoiceNo || '-'}</td>
+                        <td className="px-6 py-4 font-semibold text-slate-900">{inv.company}</td>
+                        <td className="px-6 py-4 font-bold text-amber-600 text-right">{formatCurrency(inv.amount)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-slate-500 bg-slate-50/50">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <p className="font-medium text-slate-900">Zero Outstanding Invoices!</p>
+                          <p className="text-sm">No pending payments for this selected period.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Recent Invoices Section */}
       <div className="mb-8">
         <Card className="w-full">
@@ -475,8 +643,8 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
                   </tr>
                 </thead>
                 <tbody>
-                  {data.analytics.recentInvoices.length > 0 ? (
-                    data.analytics.recentInvoices.map((inv, idx) => (
+                  {dynamicAnalytics.recentInvoices.length > 0 ? (
+                    dynamicAnalytics.recentInvoices.map((inv, idx) => (
                       <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3 text-slate-600">
                           {new Date(inv.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}

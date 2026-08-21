@@ -502,12 +502,12 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
               <div>
                 <CardTitle className="text-amber-900 flex items-center gap-2 text-base font-bold">
                   <AlertTriangle className="h-5 w-5 text-amber-500" />
-                  Outstanding Invoice Details
+                  Pending Payment Details
                 </CardTitle>
-                <CardDescription className="text-amber-700 mt-1">Pending invoices sorted by highest amount. Filters automatically by selected month.</CardDescription>
+                <CardDescription className="text-amber-700 mt-1">Pending payments sorted by highest amount. Filters automatically by selected month.</CardDescription>
               </div>
               <div className="bg-white px-3 py-1 rounded-full border border-amber-200 text-sm font-bold text-amber-700 shadow-sm whitespace-nowrap self-start md:self-auto">
-                {dynamicAnalytics.outstandingInvoices?.length || 0} Invoices
+                {dynamicAnalytics.outstandingInvoices?.length || 0} Payments
               </div>
             </div>
           </CardHeader>
@@ -520,7 +520,7 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                     <th className="px-6 py-4 font-semibold">Company</th>
                     <th className="px-6 py-4 font-semibold">Recruiter</th>
                     <th className="px-6 py-4 font-semibold">Invoice Status</th>
-                    <th className="px-6 py-4 font-semibold text-right">Outstanding Amount</th>
+                    <th className="px-6 py-4 font-semibold text-right">Pending Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -551,7 +551,7 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                           </div>
-                          <p className="font-medium text-slate-900">Zero Outstanding Invoices!</p>
+                          <p className="font-medium text-slate-900">Zero Pending Payments!</p>
                           <p className="text-sm">No pending payments for this selected period.</p>
                         </div>
                       </td>

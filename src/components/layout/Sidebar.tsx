@@ -3,12 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Briefcase, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, UserCog } from "lucide-react";
+import { LayoutDashboard, Users, Briefcase, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, UserCog, FileSpreadsheet } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Logo } from "@/components/ui/Logo";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Sheet Metrics", href: "/sheet-metrics", icon: FileSpreadsheet },
   { name: "Clients", href: "/clients", icon: Users },
   { name: "Positions", href: "/positions", icon: Briefcase },
   { name: "Audit Logs", href: "/audit-logs", icon: ShieldAlert },

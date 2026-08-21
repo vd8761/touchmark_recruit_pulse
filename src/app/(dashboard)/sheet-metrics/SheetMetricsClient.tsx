@@ -36,6 +36,7 @@ type MetricsData = {
     clients: { name: string; deals: number; value: number; paidValue: number }[];
     funnel: { name: string; count: number }[];
   };
+  allCandidates?: { date: string; candidate: string; company: string; amount: number; status: string; invoiceStatus: string; recruiter: string }[];
   lastUpdated: string;
 };
 

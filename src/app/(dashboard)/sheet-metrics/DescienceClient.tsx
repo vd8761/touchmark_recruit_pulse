@@ -91,7 +91,7 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Google Sheet Dashboard</h1>
-            <Select value={vendor} onValueChange={handleVendorChange} disabled={isPending}>
+            <Select value={vendor} onValueChange={(val) => handleVendorChange(val as string)} disabled={isPending}>
               <SelectTrigger className="w-[220px] h-9 bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors focus:ring-0 focus:ring-offset-0 rounded-lg shadow-sm">
                 <SelectValue>{vendor === 'descience' ? 'Touchmark Descience' : 'Touchmark Workforce'}</SelectValue>
               </SelectTrigger>

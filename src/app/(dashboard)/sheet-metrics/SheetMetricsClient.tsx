@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Activity, CheckCircle, FileText, Users, AlertTriangle, TrendingUp, TrendingDown, BarChart3, PieChart as PieChartIcon, Filter } from 'lucide-react';
+import { Activity, CheckCircle, FileText, Users, AlertTriangle, TrendingUp, TrendingDown, BarChart3, PieChart as PieChartIcon, Filter, Loader2 } from 'lucide-react';
 import { useSettings } from '@/providers/SettingsProvider';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, Label
 } from 'recharts';
 import {
@@ -39,9 +40,22 @@ type MetricsData = {
 
 const COLORS = ['#0B132B', '#F59E0B', '#3B82F6', '#10B981', '#6366F1', '#8B5CF6', '#EC4899', '#06B6D4', '#F43F5E'];
 
-export default function SheetMetricsClient({ data }: { data: MetricsData }) {
+export default function SheetMetricsClient({ data, vendor }: { data: MetricsData, vendor: string }) {
   const { settings } = useSettings();
-  
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const [isPending, startTransition] = useTransition();
+
+  const handleVendorChange = (newVendor: string) => {
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('vendor', newVendor);
+      router.push(`${pathname}?${params.toString()}`);
+    });
+  };
+
   // Default to the most recent month if available
   const [selectedMonthId, setSelectedMonthId] = useState<string>(
     data.months.length > 0 ? data.months[0].id : ''
@@ -59,18 +73,30 @@ export default function SheetMetricsClient({ data }: { data: MetricsData }) {
   const totalClientRevenue = data.analytics.clients.reduce((sum, item) => sum + item.value, 0);
 
   return (
-    <div className="flex flex-col gap-6 px-6 pb-8 pt-2 md:px-8 animate-in fade-in duration-500">
-      
+    <div className={`flex flex-col gap-6 px-6 pb-8 pt-2 md:px-8 animate-in fade-in duration-500 ${isPending ? 'opacity-60 pointer-events-none transition-opacity' : ''}`}>
+
       {/* Header and Controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Vendor Dashboard (Google Sheets)</h1>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Google Sheet Dashboard</h1>
+            <Select value={vendor} onValueChange={handleVendorChange} disabled={isPending}>
+              <SelectTrigger className="w-[220px] h-9 bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors focus:ring-0 focus:ring-offset-0 rounded-lg shadow-sm">
+                <SelectValue>{vendor === 'descience' ? 'Touchmark Descience' : 'Touchmark Workforce'}</SelectValue>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-slate-200 shadow-lg">
+                <SelectItem value="workforce" className="font-semibold cursor-pointer py-2">Touchmark Workforce</SelectItem>
+                <SelectItem value="descience" className="font-semibold cursor-pointer py-2">Touchmark Descience</SelectItem>
+              </SelectContent>
+            </Select>
+            {isPending && <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />}
+          </div>
           <p className="text-sm text-slate-500">
-            Real-time metrics synced from Google Sheets. 
+            Real-time metrics synced from Google Sheets.
             Last updated: {new Date(data.lastUpdated).toLocaleTimeString()}
           </p>
         </div>
-        
+
         {data.months.length > 0 && (
           <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
             <span className="text-sm font-medium text-slate-600 pl-3">Reporting Month:</span>
@@ -115,7 +141,7 @@ export default function SheetMetricsClient({ data }: { data: MetricsData }) {
         <>
           {/* Monthly P&L Cards */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            
+
             {/* Gross Joined */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -198,23 +224,23 @@ export default function SheetMetricsClient({ data }: { data: MetricsData }) {
               {selectedMonth.joined.value > 0 ? (
                 <>
                   <div className="w-full h-3 flex rounded-full overflow-hidden mt-2 bg-slate-100">
-                    <div 
-                      className="bg-emerald-500 h-full transition-all duration-500" 
+                    <div
+                      className="bg-emerald-500 h-full transition-all duration-500"
                       style={{ width: `${(selectedMonth.profitInvoiced.value / selectedMonth.joined.value) * 100}%` }}
                       title={`Profit: ${formatCurrency(selectedMonth.profitInvoiced.value)}`}
                     ></div>
-                    <div 
-                      className="bg-amber-400 h-full transition-all duration-500" 
+                    <div
+                      className="bg-amber-400 h-full transition-all duration-500"
                       style={{ width: `${(selectedMonth.atRiskSustenance.value / selectedMonth.joined.value) * 100}%` }}
                       title={`At Risk: ${formatCurrency(selectedMonth.atRiskSustenance.value)}`}
                     ></div>
-                    <div 
-                      className="bg-rose-500 h-full transition-all duration-500" 
+                    <div
+                      className="bg-rose-500 h-full transition-all duration-500"
                       style={{ width: `${(selectedMonth.lossDropped.value / selectedMonth.joined.value) * 100}%` }}
                       title={`Lost: ${formatCurrency(selectedMonth.lossDropped.value)}`}
                     ></div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -271,9 +297,9 @@ export default function SheetMetricsClient({ data }: { data: MetricsData }) {
           <BarChart3 className="w-5 h-5 text-indigo-600" />
           Advanced Analytics
         </h2>
-        
+
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-          
+
           {/* Recruiter Performance */}
           <Card className="col-span-1">
             <CardHeader>
@@ -284,12 +310,12 @@ export default function SheetMetricsClient({ data }: { data: MetricsData }) {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.analytics.recruiters} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" tickFormatter={(value) => `₹${(value/100000).toFixed(0)}L`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                  <XAxis type="number" tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
                   <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12, fontWeight: 500, fill: '#334155' }} axisLine={false} tickLine={false} />
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value: any) => formatCurrency(Number(value))}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-                    cursor={{fill: '#f8fafc'}}
+                    cursor={{ fill: '#f8fafc' }}
                   />
                   <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                   <Bar dataKey="closedValue" stackId="a" fill="#0B132B" name="Closed Value" maxBarSize={24} />
@@ -333,15 +359,15 @@ export default function SheetMetricsClient({ data }: { data: MetricsData }) {
                       className="text-xs font-medium fill-slate-500"
                     />
                   </Pie>
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value: any) => formatCurrency(Number(value))}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
                   />
-                  <Legend 
-                    layout="horizontal" 
-                    verticalAlign="bottom" 
-                    align="center" 
-                    wrapperStyle={{ fontSize: '12px', paddingTop: '15px' }} 
+                  <Legend
+                    layout="horizontal"
+                    verticalAlign="bottom"
+                    align="center"
+                    wrapperStyle={{ fontSize: '12px', paddingTop: '15px' }}
                   />
                 </PieChart>
               </ResponsiveContainer>

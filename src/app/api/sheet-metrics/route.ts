@@ -3,7 +3,9 @@ import { NextResponse } from 'next/server';
 
 export const revalidate = 300; // Cache for 5 minutes (300 seconds)
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const vendor = searchParams.get('vendor') === 'descience' ? 'descience' : 'workforce';
   try {
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -15,14 +17,22 @@ export async function GET() {
 
     const sheets = google.sheets({ version: 'v4', auth });
     
+    const spreadsheetId = vendor === 'descience' 
+      ? process.env.GOOGLE_SPREADSHEET_ID_DESCIENCE 
+      : process.env.GOOGLE_SPREADSHEET_ID_WORKFORCE;
+
+    if (!spreadsheetId) {
+      return NextResponse.json({ error: `Spreadsheet ID not found for vendor: ${vendor}` }, { status: 500 });
+    }
+
     const spreadsheet = await sheets.spreadsheets.get({
-      spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
+      spreadsheetId,
     });
     
     const sheetName = spreadsheet.data.sheets?.[0]?.properties?.title || 'Sheet1';
 
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
+      spreadsheetId,
       range: `${sheetName}!A:AA`,
     });
 

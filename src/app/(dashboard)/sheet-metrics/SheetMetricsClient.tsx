@@ -74,7 +74,7 @@ export default function SheetMetricsClient({ data }: { data: MetricsData }) {
         {data.months.length > 0 && (
           <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
             <span className="text-sm font-medium text-slate-600 pl-3">Reporting Month:</span>
-            <Select value={selectedMonthId} onValueChange={setSelectedMonthId}>
+            <Select value={selectedMonthId} onValueChange={(val) => setSelectedMonthId(val || '')}>
               <SelectTrigger className="w-[115px] px-3 bg-slate-50 border-none text-sm font-semibold text-slate-900 focus:ring-0 shadow-none hover:bg-slate-100 transition-colors rounded-md py-1.5 h-auto flex items-center justify-between">
                 <SelectValue placeholder="Select month">
                   {data.months.find(m => m.id === selectedMonthId)?.monthLabel || "Select month"}

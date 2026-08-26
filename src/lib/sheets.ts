@@ -120,7 +120,7 @@ function parseWorkforceMetrics(data: any[]) {
   const funnelStats: Record<string, number> = {
     'Sourced': 0, 'Screened': 0, 'Submitted to Client': 0, 'Shortlisted': 0, 'Interviewing': 0, 'Offered': 0, 'Offer Accepted': 0, 'Joined': 0
   };
-  const allCandidates: { date: string; candidate: string; company: string; amount: number; status: string; invoiceStatus: string; recruiter: string }[] = [];
+  const allCandidates: { date: string; candidate: string; company: string; amount: number; balanceAmount: number; status: string; invoiceStatus: string; recruiter: string }[] = [];
 
   data.forEach((row) => {
     const status = row['Candidate Status']?.trim() || '';

@@ -36,7 +36,7 @@ type MetricsData = {
     clients: { name: string; deals: number; value: number; paidValue: number }[];
     funnel: { name: string; count: number }[];
   };
-  allCandidates?: { date: string; candidate: string; company: string; amount: number; status: string; invoiceStatus: string; recruiter: string }[];
+  allCandidates?: { date: string; candidate: string; company: string; amount: number; balanceAmount: number; status: string; invoiceStatus: string; recruiter: string }[];
   lastUpdated: string;
 };
 
@@ -159,11 +159,11 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
     const outstandingInvoices = filteredCandidates
       .filter(c => {
         const invStatus = c.invoiceStatus.toLowerCase();
-        const isOutstanding = invStatus === 'pending' || invStatus === 'generated' || invStatus === 'send' || invStatus === 'overdue';
-        // Only show if it's considered a closed deal (or has an outstanding invoice status despite a weird candidate status)
-        return isOutstanding && (c.status === 'Joined' || c.status === 'Invoiced' || c.amount > 0);
+        const isOutstanding = invStatus.includes('pending') || invStatus.includes('generated') || invStatus.includes('send') || invStatus.includes('overdue') || invStatus.includes('not yet') || invStatus.includes('partially received');
+        // Only show if it's considered a closed deal and has an outstanding balance
+        return isOutstanding && (c.status === 'Joined' || c.status === 'Invoiced' || c.amount > 0) && c.balanceAmount > 0;
       })
-      .sort((a, b) => b.amount - a.amount);
+      .sort((a, b) => b.balanceAmount - a.balanceAmount);
 
     return {
       recruiters: topRecruiters,
@@ -539,7 +539,7 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                             {inv.invoiceStatus || 'Pending'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-bold text-amber-600 text-right">{formatCurrency(inv.amount)}</td>
+                        <td className="px-6 py-4 font-bold text-amber-600 text-right">{formatCurrency(inv.balanceAmount)}</td>
                       </tr>
                     )})
                   ) : (

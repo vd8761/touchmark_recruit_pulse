@@ -163,11 +163,22 @@ function parseWorkforceMetrics(data: any[]) {
       }
     }
     
+    const paymentStatus = row['Payment Status']?.trim()?.toLowerCase() || '';
+    const invoiceStatusStr = row['Invoice Status']?.trim()?.toLowerCase() || '';
+    const isPaid = paymentStatus.includes('fully received') || paymentStatus.includes('partially received') || invoiceStatusStr.includes('paid') || invoiceStatusStr.includes('received');
+    
+    let balanceAmt = budget;
+    if (isPaid) {
+      const amtReceived = parseValue(row['Amount Received']);
+      balanceAmt = Math.max(0, budget - amtReceived);
+    }
+
     allCandidates.push({
       date: row['Actual D.O.J'] || row['Invoice Eligibility Date'] || row['Invoice Generated Date'] || '',
       candidate: row['Name of the Candidate'] || row['Candidate Name'] || row['Candidate name'] || row['Name'] || 'Unknown',
       company,
       amount: budget,
+      balanceAmount: parseValue(row['Balance Amount']) || balanceAmt, // explicit balance amount if present, otherwise calculated
       status,
       invoiceStatus: row['Payment Status']?.trim() || row['Invoice Status']?.trim() || 'Pending',
       recruiter

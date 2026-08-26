@@ -535,7 +535,7 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                         <td className="px-6 py-4 font-semibold text-slate-900">{inv.company}</td>
                         <td className="px-6 py-4 font-medium text-slate-700">{inv.recruiter || '-'}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
+                          <span className={`px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ${
                             (inv.invoiceStatus || 'Pending').toLowerCase().includes('not yet') ? 'bg-rose-100 text-rose-700' :
                             (inv.invoiceStatus || 'Pending').toLowerCase().includes('partially') ? 'bg-blue-100 text-blue-700' :
                             (inv.invoiceStatus || 'Pending').toLowerCase().includes('generated') ? 'bg-indigo-100 text-indigo-700' :

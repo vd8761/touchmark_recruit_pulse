@@ -39,13 +39,13 @@ function parseWorkforceMetrics(data: any[]) {
 
   data.forEach((row) => {
     const status = row['Candidate Status']?.trim() || '';
-    const budgetRaw = parseValue(row['Closed budget (LPA)']);
+    const dealValue = parseValue(row['Closed budget (LPA)']);
     const invoiceAmt = parseValue(row['Total Amount / Invoice Amount (INR)']);
-    const budget = invoiceAmt > 0 ? invoiceAmt : budgetRaw; // use actual invoice amount as primary revenue indicator
+    const revenueAmt = invoiceAmt > 0 ? invoiceAmt : (dealValue * 0.0833);
     
     if (pipelineStatuses.includes(status)) {
       currentPipeline.count++;
-      currentPipeline.value += budget;
+      currentPipeline.value += dealValue;
     }
     
     const doj = row['Actual D.O.J'];
@@ -68,7 +68,7 @@ function parseWorkforceMetrics(data: any[]) {
       const terminalStatuses = ['Resigned', 'Absconded', 'Dropped', 'Rejected'];
       
       monthBucket.joined.count++;
-      monthBucket.joined.value += budget;
+      monthBucket.joined.value += dealValue;
 
       const invoiceDateStr = row['Invoice Eligibility Date'];
       let passedInvoiceDate = false;
@@ -88,29 +88,29 @@ function parseWorkforceMetrics(data: any[]) {
 
       if (isInvoiceGenerated) {
         monthBucket.invoicesGenerated.count++;
-        monthBucket.invoicesGenerated.value += budget;
+        monthBucket.invoicesGenerated.value += revenueAmt;
       }
       
       if (isPaid) {
         monthBucket.invoicesPaid.count++;
         const amtReceived = parseValue(row['Amount Received']);
-        monthBucket.invoicesPaid.value += amtReceived > 0 ? amtReceived : budget;
+        monthBucket.invoicesPaid.value += amtReceived > 0 ? amtReceived : revenueAmt;
       }
 
       if (terminalStatuses.includes(status)) {
         monthBucket.lossDropped.count++;
-        monthBucket.lossDropped.value += budget;
+        monthBucket.lossDropped.value += revenueAmt;
       } else if (status === 'Joined') {
         if (passedInvoiceDate || isInvoiceGenerated) {
           monthBucket.profitInvoiced.count++;
-          monthBucket.profitInvoiced.value += budget;
+          monthBucket.profitInvoiced.value += revenueAmt;
         } else {
           monthBucket.atRiskSustenance.count++;
-          monthBucket.atRiskSustenance.value += budget;
+          monthBucket.atRiskSustenance.value += revenueAmt;
         }
       } else if (status === 'Invoiced') {
           monthBucket.profitInvoiced.count++;
-          monthBucket.profitInvoiced.value += budget;
+          monthBucket.profitInvoiced.value += revenueAmt;
       }
     }
   });
@@ -124,9 +124,9 @@ function parseWorkforceMetrics(data: any[]) {
 
   data.forEach((row) => {
     const status = row['Candidate Status']?.trim() || '';
-    const budgetRaw = parseValue(row['Closed budget (LPA)']);
+    const dealValue = parseValue(row['Closed budget (LPA)']);
     const invoiceAmt = parseValue(row['Total Amount / Invoice Amount (INR)']);
-    const budget = invoiceAmt > 0 ? invoiceAmt : budgetRaw;
+    const revenueAmt = invoiceAmt > 0 ? invoiceAmt : (dealValue * 0.0833);
 
     const recruiter = row['Recruiter name']?.trim() || 'Unknown';
     const company = row['Client Name']?.trim() || row['Company']?.trim() || 'Unknown';
@@ -140,10 +140,10 @@ function parseWorkforceMetrics(data: any[]) {
     }
     if (pipelineStatuses.includes(status)) {
       recruiterStats[recruiter].pipelineDeals++;
-      recruiterStats[recruiter].pipelineValue += budget;
+      recruiterStats[recruiter].pipelineValue += dealValue;
     } else if (status === 'Joined' || status === 'Invoiced') {
       recruiterStats[recruiter].closedDeals++;
-      recruiterStats[recruiter].closedValue += budget;
+      recruiterStats[recruiter].closedValue += revenueAmt;
     }
 
     if (status === 'Joined' || status === 'Invoiced') {
@@ -151,38 +151,41 @@ function parseWorkforceMetrics(data: any[]) {
         clientStats[company] = { name: company, deals: 0, value: 0, paidValue: 0 };
       }
       clientStats[company].deals++;
-      clientStats[company].value += budget;
+      clientStats[company].value += revenueAmt;
       
       const paymentStatus = row['Payment Status']?.trim()?.toLowerCase() || '';
-      const invoiceStatus = row['Invoice Status']?.trim()?.toLowerCase() || '';
-      const isPaid = paymentStatus.includes('fully received') || paymentStatus.includes('partially received') || invoiceStatus.includes('paid') || invoiceStatus.includes('received');
+      const invoiceStatusStr = row['Invoice Status']?.trim()?.toLowerCase() || '';
+      const isPaid = paymentStatus.includes('fully received') || paymentStatus.includes('partially received') || invoiceStatusStr.includes('paid') || invoiceStatusStr.includes('received');
       
+      let balanceAmt = revenueAmt;
       if (isPaid) {
         const amtReceived = parseValue(row['Amount Received']);
-        clientStats[company].paidValue += amtReceived > 0 ? amtReceived : budget;
+        clientStats[company].paidValue += amtReceived > 0 ? amtReceived : revenueAmt;
+        balanceAmt = Math.max(0, revenueAmt - amtReceived);
       }
-    }
-    
-    const paymentStatus = row['Payment Status']?.trim()?.toLowerCase() || '';
-    const invoiceStatusStr = row['Invoice Status']?.trim()?.toLowerCase() || '';
-    const isPaid = paymentStatus.includes('fully received') || paymentStatus.includes('partially received') || invoiceStatusStr.includes('paid') || invoiceStatusStr.includes('received');
-    
-    let balanceAmt = budget;
-    if (isPaid) {
-      const amtReceived = parseValue(row['Amount Received']);
-      balanceAmt = Math.max(0, budget - amtReceived);
-    }
 
-    allCandidates.push({
-      date: row['Actual D.O.J'] || row['Invoice Eligibility Date'] || row['Invoice Generated Date'] || '',
-      candidate: row['Name of the Candidate'] || row['Candidate Name'] || row['Candidate name'] || row['Name'] || 'Unknown',
-      company,
-      amount: budget,
-      balanceAmount: parseValue(row['Balance Amount']) || balanceAmt, // explicit balance amount if present, otherwise calculated
-      status,
-      invoiceStatus: row['Payment Status']?.trim() || row['Invoice Status']?.trim() || 'Pending',
-      recruiter
-    });
+      allCandidates.push({
+        date: row['Actual D.O.J'] || row['Invoice Eligibility Date'] || row['Invoice Generated Date'] || '',
+        candidate: row['Name of the Candidate'] || row['Candidate Name'] || row['Candidate name'] || row['Name'] || 'Unknown',
+        company,
+        amount: revenueAmt,
+        balanceAmount: parseValue(row['Balance Amount']) || balanceAmt,
+        status,
+        invoiceStatus: row['Payment Status']?.trim() || row['Invoice Status']?.trim() || 'Pending',
+        recruiter
+      });
+    } else {
+      allCandidates.push({
+        date: row['Actual D.O.J'] || row['Invoice Eligibility Date'] || row['Invoice Generated Date'] || '',
+        candidate: row['Name of the Candidate'] || row['Candidate Name'] || row['Candidate name'] || row['Name'] || 'Unknown',
+        company,
+        amount: revenueAmt,
+        balanceAmount: 0,
+        status,
+        invoiceStatus: row['Payment Status']?.trim() || row['Invoice Status']?.trim() || 'Pending',
+        recruiter
+      });
+    }
   });
 
   const sortedMonths = Object.keys(monthlyData)

@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Activity, FileText, AlertTriangle, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
 import { useSettings } from '@/providers/SettingsProvider';
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
@@ -60,23 +60,23 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
     }).format(val);
   };
 
-  const selectedMonth = selectedMonthId === 'all' 
+  const selectedMonth = selectedMonthId === 'all'
     ? {
-        id: 'all',
-        monthLabel: 'All Months',
-        salesBilled: { 
-          count: data.months.reduce((acc, m) => acc + m.salesBilled.count, 0), 
-          value: data.months.reduce((acc, m) => acc + m.salesBilled.value, 0) 
-        },
-        collected: { 
-          count: data.months.reduce((acc, m) => acc + m.collected.count, 0), 
-          value: data.months.reduce((acc, m) => acc + m.collected.value, 0) 
-        },
-        pending: { 
-          count: data.months.reduce((acc, m) => acc + m.pending.count, 0), 
-          value: data.months.reduce((acc, m) => acc + m.pending.value, 0) 
-        },
-      }
+      id: 'all',
+      monthLabel: 'All Months',
+      salesBilled: {
+        count: data.months.reduce((acc, m) => acc + m.salesBilled.count, 0),
+        value: data.months.reduce((acc, m) => acc + m.salesBilled.value, 0)
+      },
+      collected: {
+        count: data.months.reduce((acc, m) => acc + m.collected.count, 0),
+        value: data.months.reduce((acc, m) => acc + m.collected.value, 0)
+      },
+      pending: {
+        count: data.months.reduce((acc, m) => acc + m.pending.count, 0),
+        value: data.months.reduce((acc, m) => acc + m.pending.value, 0)
+      },
+    }
     : data.months.find(m => m.id === selectedMonthId);
   const globalPending = data.months.reduce((acc, m) => acc + m.pending.value, 0);
   const globalPendingCount = data.months.reduce((acc, m) => acc + m.pending.count, 0);
@@ -84,8 +84,8 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
   const dynamicAnalytics = useMemo(() => {
     if (!data.allInvoices) return { ...data.analytics, outstandingInvoices: [] }; // Fallback to precomputed
 
-    const filteredInvoices = selectedMonthId === 'all' 
-      ? data.allInvoices 
+    const filteredInvoices = selectedMonthId === 'all'
+      ? data.allInvoices
       : data.allInvoices.filter(inv => inv.monthKey === selectedMonthId);
 
     const clientStats: Record<string, { name: string; billed: number; collected: number; pending: number }> = {};
@@ -95,9 +95,9 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
       '60-90 Days': { total: 0, invoices: [] },
       '90+ Days': { total: 0, invoices: [] }
     };
-    const clientAgingStats: Record<string, { 
-      name: string; 
-      '0-30 Days': number; '31-60 Days': number; '60-90 Days': number; '90+ Days': number; 
+    const clientAgingStats: Record<string, {
+      name: string;
+      '0-30 Days': number; '31-60 Days': number; '60-90 Days': number; '90+ Days': number;
       totalPending: number; invoices: Record<string, string[]>;
     }> = {};
 
@@ -140,7 +140,7 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
 
     const topClients = Object.values(clientStats).sort((a, b) => b.billed - a.billed).slice(0, 10);
     const topDebtors = Object.values(clientStats).sort((a, b) => b.pending - a.pending).slice(0, 10);
-    
+
     const clientAging = Object.values(clientAgingStats).map(c => {
       c.totalPending = c['0-30 Days'] + c['31-60 Days'] + c['60-90 Days'] + c['90+ Days'];
       return c;
@@ -169,7 +169,7 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const now = new Date();
-  
+
   // Generate the last 12 months in chronological order
   const last12Months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
@@ -187,7 +187,7 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
 
   return (
     <div className={`flex flex-col gap-6 px-6 pb-8 pt-2 md:px-8 animate-in fade-in duration-500 ${isPending ? 'opacity-60 pointer-events-none transition-opacity' : ''}`}>
-      
+
       {/* Header and Controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -307,7 +307,7 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
                 {selectedMonth.salesBilled.value > 0 ? Math.round((selectedMonth.collected.value / selectedMonth.salesBilled.value) * 100) : 0}% Collected
               </span>
             </div>
-            
+
             {selectedMonth.salesBilled.value > 0 ? (
               <>
                 <div className="w-full h-3 flex rounded-full overflow-hidden mt-2 bg-slate-100">
@@ -347,7 +347,7 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
         </h2>
 
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-          
+
           {/* Top Clients by Revenue */}
           <Card className="col-span-1">
             <CardHeader>
@@ -356,21 +356,21 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
             </CardHeader>
             <CardContent className="pt-2">
               <div className="h-[350px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dynamicAnalytics.clients} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12, fontWeight: 500, fill: '#334155' }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    formatter={(value: any) => formatCurrency(Number(value))}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-                    cursor={{ fill: '#f8fafc' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                  <Bar dataKey="billed" fill="#0B132B" name="Billed Amount" maxBarSize={32} radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="collected" fill="#10B981" name="Collected Amount" maxBarSize={32} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dynamicAnalytics.clients} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                    <XAxis type="number" tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12, fontWeight: 500, fill: '#334155' }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      formatter={(value: any) => formatCurrency(Number(value))}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+                      cursor={{ fill: '#f8fafc' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                    <Bar dataKey="billed" fill="#0B132B" name="Billed Amount" maxBarSize={32} radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="collected" fill="#10B981" name="Collected Amount" maxBarSize={32} radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
@@ -388,18 +388,18 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
                     <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorBilled" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#0B132B" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#0B132B" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#0B132B" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#0B132B" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
                       <YAxis tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} width={60} />
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <Tooltip 
+                      <Tooltip
                         formatter={(value: any) => formatCurrency(Number(value))}
                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
                       />
@@ -426,7 +426,7 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
         </h2>
 
         <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-          
+
           {/* Company Aging Report */}
           <Card className="col-span-1">
             <CardHeader>
@@ -653,11 +653,10 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
                         <td className="px-4 py-3 text-slate-700">{inv.company}</td>
                         <td className="px-4 py-3 font-semibold text-slate-900">{formatCurrency(inv.amount)}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
-                            inv.status === 'Received' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                            inv.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                            'bg-slate-100 text-slate-700 border-slate-200'
-                          }`}>
+                          <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${inv.status === 'Received' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              inv.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}>
                             {inv.status}
                           </span>
                         </td>

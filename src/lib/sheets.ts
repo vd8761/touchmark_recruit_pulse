@@ -94,7 +94,13 @@ function parseWorkforceMetrics(data: any[]) {
       if (isPaid) {
         monthBucket.invoicesPaid.count++;
         const amtReceived = parseValue(row['Amount Received']);
-        monthBucket.invoicesPaid.value += amtReceived > 0 ? amtReceived : revenueAmt;
+        let actualPaid = 0;
+        if (amtReceived > 0) {
+            actualPaid = amtReceived;
+        } else if (paymentStatus.includes('fully received') || invoiceStatus.includes('paid')) {
+            actualPaid = revenueAmt;
+        }
+        monthBucket.invoicesPaid.value += actualPaid;
       }
 
       if (terminalStatuses.includes(status)) {
@@ -156,12 +162,21 @@ function parseWorkforceMetrics(data: any[]) {
       const paymentStatus = row['Payment Status']?.trim()?.toLowerCase() || '';
       const invoiceStatusStr = row['Invoice Status']?.trim()?.toLowerCase() || '';
       const isPaid = paymentStatus.includes('fully received') || paymentStatus.includes('partially received') || invoiceStatusStr.includes('paid') || invoiceStatusStr.includes('received');
-      
       let balanceAmt = revenueAmt;
+      let actualPaid = 0;
+      
       if (isPaid) {
         const amtReceived = parseValue(row['Amount Received']);
-        clientStats[company].paidValue += amtReceived > 0 ? amtReceived : revenueAmt;
-        balanceAmt = Math.max(0, revenueAmt - amtReceived);
+        
+        // Only assume full payment if they explicitly marked it Fully Received and left amount blank
+        if (amtReceived > 0) {
+            actualPaid = amtReceived;
+        } else if (paymentStatus.includes('fully received') || invoiceStatusStr === 'paid') {
+            actualPaid = revenueAmt;
+        }
+        
+        clientStats[company].paidValue += actualPaid;
+        balanceAmt = Math.max(0, revenueAmt - actualPaid);
       }
 
       allCandidates.push({

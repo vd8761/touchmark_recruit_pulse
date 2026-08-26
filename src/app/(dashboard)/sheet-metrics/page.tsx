@@ -3,7 +3,7 @@ import SheetMetricsClient from './SheetMetricsClient';
 import DescienceClient from './DescienceClient';
 import Link from 'next/link';
 
-export const revalidate = 300; // Cache for 5 minutes
+// export const revalidate = 300; // Cache for 5 minutes
 
 export default async function SheetMetricsPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>

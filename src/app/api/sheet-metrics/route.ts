@@ -1,7 +1,7 @@
 import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
 
-export const revalidate = 300; // Cache for 5 minutes (300 seconds)
+// export const revalidate = 300; // Cache for 5 minutes (300 seconds)
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

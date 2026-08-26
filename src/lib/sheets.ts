@@ -86,37 +86,39 @@ function parseWorkforceMetrics(data: any[]) {
       const isInvoiceGenerated = invoiceStatus.includes('generated') || invoiceStatus.includes('paid') || paymentStatus.includes('received') || !!invoiceGeneratedDate;
       const isPaid = paymentStatus.includes('fully received') || paymentStatus.includes('partially received') || invoiceStatus.includes('paid') || invoiceStatus.includes('received');
 
-      if (isInvoiceGenerated) {
-        monthBucket.invoicesGenerated.count++;
-        monthBucket.invoicesGenerated.value += revenueAmt;
-      }
-      
+      let actualPaid = 0;
       if (isPaid) {
-        monthBucket.invoicesPaid.count++;
         const amtReceived = parseValue(row['Amount Received']);
-        let actualPaid = 0;
         if (amtReceived > 0) {
             actualPaid = amtReceived;
         } else if (paymentStatus.includes('fully received') || invoiceStatus.includes('paid')) {
             actualPaid = revenueAmt;
         }
+      }
+      const balanceAmt = Math.max(0, revenueAmt - actualPaid);
+
+      if (isInvoiceGenerated) {
+        monthBucket.invoicesGenerated.count++;
+        monthBucket.invoicesGenerated.value += revenueAmt;
+      }
+      
+      if (actualPaid > 0) {
+        monthBucket.invoicesPaid.count++;
         monthBucket.invoicesPaid.value += actualPaid;
       }
 
       if (terminalStatuses.includes(status)) {
         monthBucket.lossDropped.count++;
         monthBucket.lossDropped.value += revenueAmt;
-      } else if (status === 'Joined') {
-        if (passedInvoiceDate || isInvoiceGenerated) {
+      } else if (status === 'Joined' || status === 'Invoiced') {
+        if (actualPaid > 0) {
           monthBucket.profitInvoiced.count++;
-          monthBucket.profitInvoiced.value += revenueAmt;
-        } else {
-          monthBucket.atRiskSustenance.count++;
-          monthBucket.atRiskSustenance.value += revenueAmt;
+          monthBucket.profitInvoiced.value += actualPaid;
         }
-      } else if (status === 'Invoiced') {
-          monthBucket.profitInvoiced.count++;
-          monthBucket.profitInvoiced.value += revenueAmt;
+        if (balanceAmt > 0) {
+          monthBucket.atRiskSustenance.count++;
+          monthBucket.atRiskSustenance.value += balanceAmt;
+        }
       }
     }
   });

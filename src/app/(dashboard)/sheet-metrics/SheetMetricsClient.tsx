@@ -183,11 +183,12 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Google Sheet Dashboard</h1>
             <Select value={vendor} onValueChange={(val) => handleVendorChange(val as string)} disabled={isPending}>
               <SelectTrigger className="w-[220px] h-9 bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors focus:ring-0 focus:ring-offset-0 rounded-lg shadow-sm">
-                <SelectValue>{vendor === 'descience' ? 'Touchmark Descience' : 'Touchmark Workforce'}</SelectValue>
+                <SelectValue>{vendor === 'descience' ? 'Touchmark Descience' : vendor === 'dosc' ? 'DOSC Placement' : 'Touchmark Workforce'}</SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-xl border-slate-200 shadow-lg">
                 <SelectItem value="workforce" className="font-semibold cursor-pointer py-2">Touchmark Workforce</SelectItem>
                 <SelectItem value="descience" className="font-semibold cursor-pointer py-2">Touchmark Descience</SelectItem>
+                <SelectItem value="dosc" className="font-semibold cursor-pointer py-2">DOSC Placement</SelectItem>
               </SelectContent>
             </Select>
             {isPending && <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />}
@@ -302,11 +303,15 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
               </CardContent>
             </Card>
 
-            {/* Loss (Dropped) */}
+            {/* Loss (Dropped) / Pending */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-[13px] font-bold text-slate-600 whitespace-nowrap tracking-tight mr-1">Loss (Dropped)</CardTitle>
-                <TrendingDown className="h-4 w-4 text-red-600 shrink-0" />
+                <CardTitle className="text-[13px] font-bold text-slate-600 whitespace-nowrap tracking-tight mr-1">{vendor === 'dosc' ? 'Pending' : 'Loss (Dropped)'}</CardTitle>
+                {vendor === 'dosc' ? (
+                  <Activity className="h-4 w-4 text-blue-600 shrink-0" />
+                ) : (
+                  <TrendingDown className="h-4 w-4 text-red-600 shrink-0" />
+                )}
               </CardHeader>
               <CardContent>
                 <div className="text-xl md:text-2xl font-bold text-slate-900 tracking-tighter" title={formatCurrency(selectedMonth.lossDropped.value)}>{formatCurrency(selectedMonth.lossDropped.value)}</div>
@@ -517,8 +522,8 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                 <thead className="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0 z-10 shadow-sm">
                   <tr>
                     <th className="px-6 py-4 font-semibold">Date</th>
-                    <th className="px-6 py-4 font-semibold">Company</th>
-                    <th className="px-6 py-4 font-semibold">Recruiter</th>
+                    <th className="px-6 py-4 font-semibold">{vendor === 'dosc' ? 'Placed Company' : 'Company'}</th>
+                    <th className="px-6 py-4 font-semibold">{vendor === 'dosc' ? 'Institution' : 'Recruiter'}</th>
                     <th className="px-6 py-4 font-semibold">Invoice Status</th>
                     <th className="px-6 py-4 font-semibold text-right">Pending Amount</th>
                   </tr>

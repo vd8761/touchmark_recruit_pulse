@@ -40,8 +40,7 @@ function parseWorkforceMetrics(data: any[]) {
   data.forEach((row) => {
     const status = row['Candidate Status']?.trim() || '';
     const dealValue = parseValue(row['Closed budget (LPA)']);
-    const invoiceAmt = parseValue(row['Total Amount / Invoice Amount (INR)']);
-    const revenueAmt = invoiceAmt > 0 ? invoiceAmt : (dealValue * 0.0833);
+    const revenueAmt = dealValue * 0.0833;
     
     if (pipelineStatuses.includes(status)) {
       currentPipeline.count++;
@@ -80,20 +79,14 @@ function parseWorkforceMetrics(data: any[]) {
       }
 
       const invoiceStatus = row['Invoice Status']?.trim()?.toLowerCase() || '';
-      const paymentStatus = row['Payment Status']?.trim()?.toLowerCase() || '';
       const invoiceGeneratedDate = row['Invoice Generated Date'];
       
-      const isInvoiceGenerated = invoiceStatus.includes('generated') || invoiceStatus.includes('paid') || paymentStatus.includes('received') || !!invoiceGeneratedDate;
-      const isPaid = paymentStatus.includes('fully received') || paymentStatus.includes('partially received') || invoiceStatus.includes('paid') || invoiceStatus.includes('received');
+      const isInvoiceGenerated = invoiceStatus.includes('generated') || invoiceStatus.includes('paid') || invoiceStatus.includes('received') || !!invoiceGeneratedDate;
+      const isPaid = invoiceStatus.includes('paid') || invoiceStatus.includes('received');
 
       let actualPaid = 0;
       if (isPaid) {
-        const amtReceived = parseValue(row['Amount Received']);
-        if (amtReceived > 0) {
-            actualPaid = amtReceived;
-        } else if (paymentStatus.includes('fully received') || invoiceStatus.includes('paid')) {
-            actualPaid = revenueAmt;
-        }
+        actualPaid = revenueAmt;
       }
       const balanceAmt = Math.max(0, revenueAmt - actualPaid);
 
@@ -133,11 +126,10 @@ function parseWorkforceMetrics(data: any[]) {
   data.forEach((row) => {
     const status = row['Candidate Status']?.trim() || '';
     const dealValue = parseValue(row['Closed budget (LPA)']);
-    const invoiceAmt = parseValue(row['Total Amount / Invoice Amount (INR)']);
-    const revenueAmt = invoiceAmt > 0 ? invoiceAmt : (dealValue * 0.0833);
+    const revenueAmt = dealValue * 0.0833;
 
     const recruiter = row['Recruiter name']?.trim() || 'Unknown';
-    const company = row['Client Name']?.trim() || row['Company']?.trim() || 'Unknown';
+    const company = row['Company']?.trim() || 'Unknown';
 
     if (funnelStats[status] !== undefined) {
       funnelStats[status]++;
@@ -161,45 +153,36 @@ function parseWorkforceMetrics(data: any[]) {
       clientStats[company].deals++;
       clientStats[company].value += revenueAmt;
       
-      const paymentStatus = row['Payment Status']?.trim()?.toLowerCase() || '';
       const invoiceStatusStr = row['Invoice Status']?.trim()?.toLowerCase() || '';
-      const isPaid = paymentStatus.includes('fully received') || paymentStatus.includes('partially received') || invoiceStatusStr.includes('paid') || invoiceStatusStr.includes('received');
+      const isPaid = invoiceStatusStr.includes('paid') || invoiceStatusStr.includes('received');
       let balanceAmt = revenueAmt;
       let actualPaid = 0;
       
       if (isPaid) {
-        const amtReceived = parseValue(row['Amount Received']);
-        
-        // Only assume full payment if they explicitly marked it Fully Received and left amount blank
-        if (amtReceived > 0) {
-            actualPaid = amtReceived;
-        } else if (paymentStatus.includes('fully received') || invoiceStatusStr === 'paid') {
-            actualPaid = revenueAmt;
-        }
-        
+        actualPaid = revenueAmt;
         clientStats[company].paidValue += actualPaid;
         balanceAmt = Math.max(0, revenueAmt - actualPaid);
       }
 
       allCandidates.push({
         date: row['Actual D.O.J'] || row['Invoice Eligibility Date'] || row['Invoice Generated Date'] || '',
-        candidate: row['Name of the Candidate'] || row['Candidate Name'] || row['Candidate name'] || row['Name'] || 'Unknown',
+        candidate: row['Name of the Candidate'] || 'Unknown',
         company,
         amount: revenueAmt,
-        balanceAmount: parseValue(row['Balance Amount']) || balanceAmt,
+        balanceAmount: balanceAmt,
         status,
-        invoiceStatus: row['Payment Status']?.trim() || row['Invoice Status']?.trim() || 'Pending',
+        invoiceStatus: row['Invoice Status']?.trim() || 'Pending',
         recruiter
       });
     } else {
       allCandidates.push({
         date: row['Actual D.O.J'] || row['Invoice Eligibility Date'] || row['Invoice Generated Date'] || '',
-        candidate: row['Name of the Candidate'] || row['Candidate Name'] || row['Candidate name'] || row['Name'] || 'Unknown',
+        candidate: row['Name of the Candidate'] || 'Unknown',
         company,
         amount: revenueAmt,
         balanceAmount: 0,
         status,
-        invoiceStatus: row['Payment Status']?.trim() || row['Invoice Status']?.trim() || 'Pending',
+        invoiceStatus: row['Invoice Status']?.trim() || 'Pending',
         recruiter
       });
     }
@@ -393,7 +376,150 @@ function parseDescienceMetrics(data: any[]) {
   };
 }
 
-export async function getSheetMetrics(vendor: 'workforce' | 'descience' = 'workforce') {
+function parseDoscMetrics(data: any[]) {
+  let currentPipeline = { count: 0, value: 0 };
+
+  const monthlyData: Record<string, {
+    monthLabel: string;
+    joined: { count: number; value: number };
+    profitInvoiced: { count: number; value: number };
+    lossDropped: { count: number; value: number };
+    atRiskSustenance: { count: number; value: number };
+    invoicesGenerated: { count: number; value: number };
+    invoicesPaid: { count: number; value: number };
+  }> = {};
+
+  const recruiterStats: Record<string, { name: string; pipelineDeals: number; pipelineValue: number; closedDeals: number; closedValue: number }> = {};
+  const clientStats: Record<string, { name: string; deals: number; value: number; paidValue: number }> = {};
+  const funnelStats: Record<string, number> = {
+    'Sourced': 0, 'Screened': 0, 'Submitted to Client': 0, 'Shortlisted': 0, 'Interviewing': 0, 'Offered': 0, 'Offer Accepted': 0, 'Joined': 0
+  };
+  const allCandidates: any[] = [];
+
+  data.forEach((row) => {
+    const candidateName = row['Candidate Name']?.trim() || 'Unknown';
+    const company = row['Company Placed']?.trim() || 'Unknown';
+    const collegeName = row['College Name']?.trim() || 'Unknown';
+    const placementDate = row['Placement Date'];
+    
+    // Status is not explicitly provided, but if they have a placement date, we assume 'Joined'
+    const status = placementDate ? 'Joined' : 'Offer Accepted';
+    
+    if (funnelStats[status] !== undefined) {
+      funnelStats[status]++;
+    }
+
+    const packageVal = parseValue(row['Package (LPA)']);
+    const revenueAmt = parseValue(row['Amount to Receive from College']);
+    const actualPaid = parseValue(row['Amount Received']);
+    const balanceAmt = parseValue(row['Balance Amount']) || Math.max(0, revenueAmt - actualPaid);
+    const paymentStatus = row['Payment Status']?.trim() || '';
+
+    currentPipeline.count++;
+    currentPipeline.value += revenueAmt;
+
+    const monthInfo = getMonthKey(placementDate);
+    
+    if (monthInfo) {
+      if (!monthlyData[monthInfo.key]) {
+        monthlyData[monthInfo.key] = {
+          monthLabel: monthInfo.label,
+          joined: { count: 0, value: 0 },
+          profitInvoiced: { count: 0, value: 0 },
+          lossDropped: { count: 0, value: 0 },
+          atRiskSustenance: { count: 0, value: 0 },
+          invoicesGenerated: { count: 0, value: 0 },
+          invoicesPaid: { count: 0, value: 0 },
+        };
+      }
+
+      const monthBucket = monthlyData[monthInfo.key];
+      monthBucket.joined.count++;
+      monthBucket.joined.value += packageVal;
+
+      const invoiceGeneratedCol = row['Invoice Generated']?.trim()?.toLowerCase() || '';
+      const isInvoiceGenerated = invoiceGeneratedCol === 'yes' || invoiceGeneratedCol === 'true' || paymentStatus.length > 0 || actualPaid > 0;
+
+      if (isInvoiceGenerated) {
+        monthBucket.invoicesGenerated.count++;
+        monthBucket.invoicesGenerated.value += revenueAmt;
+      }
+
+      if (actualPaid > 0) {
+        monthBucket.invoicesPaid.count++;
+        monthBucket.invoicesPaid.value += actualPaid;
+        monthBucket.profitInvoiced.count++;
+        monthBucket.profitInvoiced.value += actualPaid;
+      }
+      if (balanceAmt > 0) {
+        monthBucket.atRiskSustenance.count++;
+        monthBucket.atRiskSustenance.value += balanceAmt;
+        if (isInvoiceGenerated) {
+          monthBucket.lossDropped.count++;
+          monthBucket.lossDropped.value += balanceAmt;
+        }
+      }
+    }
+
+    // Recruiter (College Name) Stats
+    if (!recruiterStats[collegeName]) {
+      recruiterStats[collegeName] = { name: collegeName, pipelineDeals: 0, pipelineValue: 0, closedDeals: 0, closedValue: 0 };
+    }
+    if (status === 'Offer Accepted') {
+      recruiterStats[collegeName].pipelineDeals++;
+      recruiterStats[collegeName].pipelineValue += packageVal;
+    } else if (status === 'Joined') {
+      recruiterStats[collegeName].closedDeals++;
+      recruiterStats[collegeName].closedValue += revenueAmt;
+    }
+
+    // Client Stats
+    if (status === 'Joined') {
+      if (!clientStats[company]) {
+        clientStats[company] = { name: company, deals: 0, value: 0, paidValue: 0 };
+      }
+      clientStats[company].deals++;
+      clientStats[company].value += revenueAmt;
+      clientStats[company].paidValue += actualPaid;
+    }
+
+    allCandidates.push({
+      date: placementDate || '',
+      candidate: candidateName,
+      company,
+      amount: revenueAmt,
+      balanceAmount: balanceAmt,
+      status,
+      invoiceStatus: paymentStatus || 'Pending',
+      recruiter: collegeName
+    });
+  });
+
+  const sortedMonths = Object.keys(monthlyData)
+    .sort((a, b) => a.localeCompare(b))
+    .map(key => ({
+      id: key,
+      ...monthlyData[key]
+    }));
+
+  const topRecruiters = Object.values(recruiterStats).sort((a, b) => b.closedValue - a.closedValue).slice(0, 10);
+  const topClients = Object.values(clientStats).sort((a, b) => b.value - a.value).slice(0, 10);
+  const funnelData = Object.entries(funnelStats).map(([name, count]) => ({ name, count })).filter(f => f.count > 0);
+
+  return {
+    pipeline: currentPipeline,
+    months: sortedMonths,
+    analytics: {
+      recruiters: topRecruiters,
+      clients: topClients,
+      funnel: funnelData
+    },
+    allCandidates,
+    lastUpdated: new Date().toISOString()
+  };
+}
+
+export async function getSheetMetrics(vendor: 'workforce' | 'descience' | 'dosc' = 'workforce') {
   const auth = new google.auth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -406,6 +532,8 @@ export async function getSheetMetrics(vendor: 'workforce' | 'descience' = 'workf
   
   const spreadsheetId = vendor === 'descience' 
     ? process.env.GOOGLE_SPREADSHEET_ID_DESCIENCE 
+    : vendor === 'dosc'
+    ? process.env.GOOGLE_SPREADSHEET_ID_DOSC
     : process.env.GOOGLE_SPREADSHEET_ID_WORKFORCE;
 
   if (!spreadsheetId) {
@@ -442,6 +570,8 @@ export async function getSheetMetrics(vendor: 'workforce' | 'descience' = 'workf
 
   if (vendor === 'descience') {
     return parseDescienceMetrics(data);
+  } else if (vendor === 'dosc') {
+    return parseDoscMetrics(data);
   }
 
   return parseWorkforceMetrics(data);

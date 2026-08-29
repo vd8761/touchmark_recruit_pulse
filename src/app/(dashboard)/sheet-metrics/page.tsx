@@ -11,7 +11,7 @@ export default async function SheetMetricsPage(props: {
   try {
     const searchParams = await props.searchParams;
     const vendorParam = searchParams?.vendor;
-    const vendor = vendorParam === 'descience' ? 'descience' : 'workforce';
+    const vendor = vendorParam === 'descience' ? 'descience' : vendorParam === 'dosc' ? 'dosc' : 'workforce';
 
     const data = await getSheetMetrics(vendor);
     

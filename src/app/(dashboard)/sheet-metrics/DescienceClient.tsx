@@ -195,11 +195,12 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Google Sheet Dashboard</h1>
             <Select value={vendor} onValueChange={(val) => handleVendorChange(val as string)} disabled={isPending}>
               <SelectTrigger className="w-[220px] h-9 bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors focus:ring-0 focus:ring-offset-0 rounded-lg shadow-sm">
-                <SelectValue>{vendor === 'descience' ? 'Touchmark Descience' : 'Touchmark Workforce'}</SelectValue>
+                <SelectValue>{vendor === 'descience' ? 'Touchmark Descience' : vendor === 'dosc' ? 'DOSC Placement' : 'Touchmark Workforce'}</SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-xl border-slate-200 shadow-lg">
                 <SelectItem value="workforce" className="font-semibold cursor-pointer py-2">Touchmark Workforce</SelectItem>
                 <SelectItem value="descience" className="font-semibold cursor-pointer py-2">Touchmark Descience</SelectItem>
+                <SelectItem value="dosc" className="font-semibold cursor-pointer py-2">DOSC Placement</SelectItem>
               </SelectContent>
             </Select>
             {isPending && <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />}

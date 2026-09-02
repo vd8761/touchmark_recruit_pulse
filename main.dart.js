@@ -36147,7 +36147,7 @@ l=null
 k=null
 p=5
 s=8
-return A.H(n.pJ(B.yl,m,a7),$async$md)
+return A.H(n.pJ(B.ym,m,a7),$async$md)
 case 8:l=a9
 k="Groq"
 p=2
@@ -36160,7 +36160,7 @@ A.j_("=== GROQ API ERROR ===")
 A.j_(j)
 p=10
 s=13
-return A.H(n.pJ(B.ym,m,a7),$async$md)
+return A.H(n.pJ(B.yl,m,a7),$async$md)
 case 13:l=a9
 k="OpenAI (fallback)"
 p=4
@@ -79289,8 +79289,8 @@ B.ah=A.jK.prototype
 B.wg=J.HX.prototype
 B.k5=J.ka.prototype
 B.Up=new A.TD(0,"unknown")
-B.yl=new A.En("Groq","/api/chat","","llama3-8b-8192")
-B.ym=new A.En("OpenAI","https://api.openai.com/v1/chat/completions","YOUR_OPENAI_KEY_HERE","gpt-4o-mini")
+B.yl=new A.En("OpenAI","https://api.openai.com/v1/chat/completions","YOUR_OPENAI_KEY_HERE","gpt-4o-mini")
+B.ym=new A.En("Groq","https://recruit.touchmarkdes.com/api/chat","","llama-3.1-8b-instant")
 B.yn=new A.e0(0,1)
 B.yo=new A.e0(0,-1)
 B.Uq=new A.e0(1,0)

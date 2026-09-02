@@ -5,7 +5,7 @@ const parseValue = (val: string | undefined | null) => {
   const strVal = val.toString().toUpperCase();
   const num = parseFloat(strVal.replace(/[^0-9.]/g, ''));
   if (isNaN(num)) return 0;
-  
+
   if (strVal.includes('LPA') || strVal.includes('LAKH')) {
     return num * 100000;
   }
@@ -41,15 +41,15 @@ function parseWorkforceMetrics(data: any[]) {
     const status = row['Candidate Status']?.trim() || '';
     const dealValue = parseValue(row['Closed budget (LPA)']);
     const revenueAmt = dealValue * 0.0833;
-    
+
     if (pipelineStatuses.includes(status)) {
       currentPipeline.count++;
       currentPipeline.value += dealValue;
     }
-    
+
     const doj = row['Actual D.O.J'];
     const monthInfo = getMonthKey(doj);
-    
+
     if (monthInfo) {
       if (!monthlyData[monthInfo.key]) {
         monthlyData[monthInfo.key] = {
@@ -65,7 +65,7 @@ function parseWorkforceMetrics(data: any[]) {
 
       const monthBucket = monthlyData[monthInfo.key];
       const terminalStatuses = ['Resigned', 'Absconded', 'Dropped', 'Rejected'];
-      
+
       monthBucket.joined.count++;
       monthBucket.joined.value += dealValue;
 
@@ -80,7 +80,7 @@ function parseWorkforceMetrics(data: any[]) {
 
       const invoiceStatus = row['Invoice Status']?.trim()?.toLowerCase() || '';
       const invoiceGeneratedDate = row['Invoice Generated Date'];
-      
+
       const isInvoiceGenerated = invoiceStatus.includes('generated') || invoiceStatus.includes('paid') || invoiceStatus.includes('received') || !!invoiceGeneratedDate;
       const isPaid = invoiceStatus.includes('paid') || invoiceStatus.includes('received');
 
@@ -94,7 +94,7 @@ function parseWorkforceMetrics(data: any[]) {
         monthBucket.invoicesGenerated.count++;
         monthBucket.invoicesGenerated.value += revenueAmt;
       }
-      
+
       if (actualPaid > 0) {
         monthBucket.invoicesPaid.count++;
         monthBucket.invoicesPaid.value += actualPaid;
@@ -152,12 +152,12 @@ function parseWorkforceMetrics(data: any[]) {
       }
       clientStats[company].deals++;
       clientStats[company].value += revenueAmt;
-      
+
       const invoiceStatusStr = row['Invoice Status']?.trim()?.toLowerCase() || '';
       const isPaid = invoiceStatusStr.includes('paid') || invoiceStatusStr.includes('received');
       let balanceAmt = revenueAmt;
       let actualPaid = 0;
-      
+
       if (isPaid) {
         actualPaid = revenueAmt;
         clientStats[company].paidValue += actualPaid;
@@ -222,7 +222,7 @@ function parseDescienceMetrics(data: any[]) {
 
   const clientStats: Record<string, { name: string; billed: number; collected: number; pending: number }> = {};
   const recentInvoices: any[] = [];
-  
+
   const agingStats: Record<string, { total: number; invoices: string[] }> = {
     '0-30 Days': { total: 0, invoices: [] },
     '31-60 Days': { total: 0, invoices: [] },
@@ -230,23 +230,23 @@ function parseDescienceMetrics(data: any[]) {
     '90+ Days': { total: 0, invoices: [] }
   };
 
-  const clientAgingStats: Record<string, { 
-    name: string; 
-    '0-30 Days': number; 
-    '31-60 Days': number; 
-    '60-90 Days': number; 
-    '90+ Days': number; 
+  const clientAgingStats: Record<string, {
+    name: string;
+    '0-30 Days': number;
+    '31-60 Days': number;
+    '60-90 Days': number;
+    '90+ Days': number;
     totalPending: number;
     invoices: Record<string, string[]>;
   }> = {};
-  
+
   const now = Date.now();
 
   data.forEach((row) => {
     const invoiceDateStr = row['Invoice Date'];
     const amount = parseValue(row['Invoice Amount (INR)']);
     let status = row['Invoice Status']?.trim() || '';
-    
+
     // Normalize display statuses
     if (status.toLowerCase() === 'send') status = 'Pending';
     if (status.toLowerCase() === 'paid') status = 'Received';
@@ -292,7 +292,7 @@ function parseDescienceMetrics(data: any[]) {
       } else if (isPending) {
         monthBucket.pending.count++;
         monthBucket.pending.value += amount;
-        
+
         if (!clientAgingStats[company]) {
           clientAgingStats[company] = { name: company, '0-30 Days': 0, '31-60 Days': 0, '60-90 Days': 0, '90+ Days': 0, totalPending: 0, invoices: { '0-30 Days': [], '31-60 Days': [], '60-90 Days': [], '90+ Days': [] } };
         }
@@ -352,7 +352,7 @@ function parseDescienceMetrics(data: any[]) {
   const topClients = Object.values(clientStats).sort((a, b) => b.billed - a.billed).slice(0, 10);
   const topDebtors = Object.values(clientStats).filter(c => c.pending > 0).sort((a, b) => b.pending - a.pending).slice(0, 10);
   const clientAging = Object.values(clientAgingStats).filter(c => c.totalPending > 0).sort((a, b) => b.totalPending - a.totalPending).slice(0, 10);
-  
+
   const agingData = Object.entries(agingStats).map(([name, data]) => ({ name, value: data.total, invoices: data.invoices })).filter(a => a.value > 0);
 
   recentInvoices.sort((a, b) => {
@@ -401,10 +401,10 @@ function parseDoscMetrics(data: any[]) {
     const company = row['Company Placed']?.trim() || 'Unknown';
     const collegeName = row['College Name']?.trim() || 'Unknown';
     const placementDate = row['Placement Date'];
-    
+
     // Status is not explicitly provided, but if they have a placement date, we assume 'Joined'
     const status = placementDate ? 'Joined' : 'Offer Accepted';
-    
+
     if (funnelStats[status] !== undefined) {
       funnelStats[status]++;
     }
@@ -419,7 +419,7 @@ function parseDoscMetrics(data: any[]) {
     currentPipeline.value += revenueAmt;
 
     const monthInfo = getMonthKey(placementDate);
-    
+
     if (monthInfo) {
       if (!monthlyData[monthInfo.key]) {
         monthlyData[monthInfo.key] = {
@@ -529,12 +529,12 @@ export async function getSheetMetrics(vendor: 'workforce' | 'descience' | 'dosc'
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  
-  const spreadsheetId = vendor === 'descience' 
-    ? process.env.GOOGLE_SPREADSHEET_ID_DESCIENCE 
+
+  const spreadsheetId = vendor === 'descience'
+    ? process.env.GOOGLE_SPREADSHEET_ID_DESCIENCE
     : vendor === 'dosc'
-    ? process.env.GOOGLE_SPREADSHEET_ID_DOSC
-    : process.env.GOOGLE_SPREADSHEET_ID_WORKFORCE;
+      ? process.env.GOOGLE_SPREADSHEET_ID_DOSC
+      : process.env.GOOGLE_SPREADSHEET_ID_WORKFORCE;
 
   if (!spreadsheetId) {
     throw new Error(`Spreadsheet ID not found for vendor: ${vendor}`);
@@ -543,7 +543,7 @@ export async function getSheetMetrics(vendor: 'workforce' | 'descience' | 'dosc'
   const spreadsheet = await sheets.spreadsheets.get({
     spreadsheetId,
   });
-  
+
   const sheetName = spreadsheet.data.sheets?.[0]?.properties?.title || 'Sheet1';
 
   const response = await sheets.spreadsheets.values.get({
@@ -552,14 +552,14 @@ export async function getSheetMetrics(vendor: 'workforce' | 'descience' | 'dosc'
   });
 
   const rows = response.data.values;
-  
+
   if (!rows || rows.length === 0) {
     throw new Error('No data found in spreadsheet.');
   }
 
   const headers = rows[0];
   const dataRows = rows.slice(1);
-  
+
   const data = dataRows.map((row) => {
     const obj: any = {};
     headers.forEach((header: string, index: number) => {

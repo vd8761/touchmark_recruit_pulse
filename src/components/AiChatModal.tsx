@@ -1,14 +1,57 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface Message {
     role: 'user' | 'assistant';
     content: string;
+    cached?: boolean; // true = served from local cache instantly
+}
+
+interface CacheEntry {
+    answer: string;
+    metricsFingerprint: string; // short hash of metricsContext when cached
+    timestamp: number;
+}
+
+const CACHE_KEY = 'recruitpulse_ai_cache';
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/** Simple string hash for cache keying */
+function simpleHash(str: string): string {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+        h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h).toString(36);
+}
+
+function readCache(): Record<string, CacheEntry> {
+    try {
+        return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+    } catch {
+        return {};
+    }
+}
+
+function writeCache(cache: Record<string, CacheEntry>) {
+    try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch {
+        // Storage quota exceeded — clear and retry
+        localStorage.removeItem(CACHE_KEY);
+    }
+}
+
+function pruneExpired(cache: Record<string, CacheEntry>): Record<string, CacheEntry> {
+    const now = Date.now();
+    return Object.fromEntries(
+        Object.entries(cache).filter(([, v]) => now - v.timestamp < CACHE_TTL_MS)
+    );
 }
 
 interface AiChatModalProps {
-    metricsContext?: string; // Pass sheet metrics as context to the AI
+    metricsContext?: string;
 }
 
 export default function AiChatModal({ metricsContext }: AiChatModalProps) {
@@ -24,6 +67,9 @@ export default function AiChatModal({ metricsContext }: AiChatModalProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
+    // Fingerprint of current live metrics data (changes when data refreshes)
+    const metricsFingerprint = metricsContext ? simpleHash(metricsContext) : 'none';
+
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
@@ -33,6 +79,92 @@ export default function AiChatModal({ metricsContext }: AiChatModalProps) {
             setTimeout(() => inputRef.current?.focus(), 300);
         }
     }, [isOpen]);
+
+    // ── Core API caller (reusable for both live & background refresh) ────
+    const callAI = useCallback(async (
+        question: string,
+        conversationHistory: Message[],
+        inr: (n: number) => string,
+        buildContext: (raw: string) => string,
+    ): Promise<string> => {
+        const readableMetrics = metricsContext ? buildContext(metricsContext) : null;
+
+        const systemContent = readableMetrics
+            ? `You are RecruitPulse AI — a senior analytics advisor for Touchmark, an Indian recruitment & staffing company.
+
+═══════════════════════════════════
+CORE RULES — NEVER BREAK THESE
+═══════════════════════════════════
+1. CURRENCY: ALL money is in Indian Rupees. ALWAYS write ₹ (e.g. ₹2,49,900). NEVER write USD, dollars, or any non-INR symbol.
+2. COUNTS: Deal counts, invoice counts, candidate counts are plain numbers — never add ₹ to them.
+3. VENDORS: You have data for all 3 vendors. Always name the vendor when citing a figure.
+4. FIELD NAME REPHRASING: Translate raw field names into natural business language:
+   - profitInvoiced / Realized Revenue → "Revenue Earned"
+   - lossDropped / Loss Dropped → "Revenue Lost"
+   - atRiskSustenance / At Risk → "At-Risk Revenue"
+   - invoicesGenerated → "Invoices Raised"
+   - invoicesPaid → "Amount Collected"
+   - joined / Gross Deals → "Placements Made"
+   - pipeline → "Active Pipeline"
+   - value → monetary amount; count → number of candidates/deals
+
+═══════════════════════════════════
+RESPONSE FORMAT — ALWAYS FOLLOW
+═══════════════════════════════════
+For every answer:
+1. Start with a **bold headline** summarising the answer in one sentence.
+2. Use bullet points with icons for each metric:
+   - 📊 for pipeline / deal figures
+   - ✅ for positive outcomes (revenue earned, collected)
+   - ⚠️ for risks or losses (at-risk, dropped)
+   - 🧾 for invoice details
+   - 🏢 for vendor/company comparisons
+3. Group by vendor when multiple vendors are involved.
+4. End with a **💡 Key Takeaway** — one sentence insight.
+5. Keep the total response concise (under 200 words) unless a detailed breakdown is explicitly asked.
+
+═══════════════════════════════════
+METRIC DEFINITIONS
+═══════════════════════════════════
+- Active Pipeline: Candidates currently in hiring funnel (Sourced → Offer Accepted). Value = estimated CTC worth.
+- Placements Made: Candidates who joined a client. Value = their annual CTC.
+- Revenue Earned: Actual billing to client ≈ 8.33% of CTC per placement.
+- Invoices Raised: Total invoice value billed to clients.
+- Amount Collected: Cash actually received from clients.
+- Pending / Outstanding: Invoices Raised − Amount Collected.
+- Revenue Lost: Value of candidates who dropped after joining.
+- At-Risk Revenue: Value of candidates in probation who may drop.
+
+═══════════════════════════════════
+VENDOR SHEETS (ALL 3 AVAILABLE)
+═══════════════════════════════════
+- 🏢 Touchmark Workforce
+- 🏢 Touchmark Descience
+- 🏢 DOSC Placement
+
+DATA:
+${readableMetrics}`
+            : `You are RecruitPulse AI — a senior analytics advisor for Touchmark, an Indian staffing company. All money is ₹ (INR). Be professional, structured, and use bullet points with icons.`;
+
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'openai/gpt-oss-20b',
+                messages: [
+                    { role: 'system', content: systemContent },
+                    ...conversationHistory,
+                    { role: 'user', content: question },
+                ],
+                max_tokens: 700,
+                temperature: 0.2,
+            }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error?.message || 'API Error');
+        return data?.choices?.[0]?.message?.content ?? 'Sorry, I could not get a response.';
+    }, [metricsContext]);
 
     const sendMessage = async () => {
         const trimmed = input.trim();
@@ -88,95 +220,60 @@ export default function AiChatModal({ metricsContext }: AiChatModalProps) {
             }
         };
 
+        // ── Cache key: hash of (question + metricsFingerprint) ──────────
+        const cacheKey = simpleHash(trimmed.toLowerCase() + metricsFingerprint);
+        const cache = pruneExpired(readCache());
+        const hit = cache[cacheKey];
+
+        const conversationSoFar = messages; // snapshot before state update
+
         try {
-            const readableMetrics = metricsContext ? buildContext(metricsContext) : null;
+            if (hit) {
+                // ── CACHE HIT: show answer instantly ────────────────────
+                setMessages((prev) => [...prev, { role: 'assistant', content: hit.answer, cached: true }]);
+                setIsLoading(false);
 
-            const systemContent = readableMetrics
-                ? `You are RecruitPulse AI — a senior analytics advisor for Touchmark, an Indian recruitment & staffing company.
+                // ── STALE CHECK: if data has changed, silently refresh ──
+                if (hit.metricsFingerprint !== metricsFingerprint) {
+                    // Show a subtle "Refreshing with latest data..." notice
+                    setTimeout(async () => {
+                        try {
+                            const fresh = await callAI(trimmed, conversationSoFar, inr, buildContext);
+                            // Replace the cached message with fresh one
+                            setMessages((prev) => {
+                                const updated = [...prev];
+                                // find last assistant message and replace
+                                for (let i = updated.length - 1; i >= 0; i--) {
+                                    if (updated[i].role === 'assistant') {
+                                        updated[i] = { role: 'assistant', content: fresh + '\n\n_🔄 Updated with latest data._', cached: false };
+                                        break;
+                                    }
+                                }
+                                return updated;
+                            });
+                            // Update cache with fresh fingerprint
+                            const updatedCache = { ...readCache(), [cacheKey]: { answer: fresh, metricsFingerprint, timestamp: Date.now() } };
+                            writeCache(updatedCache);
+                        } catch {
+                            // Silent fail — cached answer remains
+                        }
+                    }, 100);
+                }
+            } else {
+                // ── CACHE MISS: call AI and store result ─────────────────
+                const aiReply = await callAI(trimmed, conversationSoFar, inr, buildContext);
+                setMessages((prev) => [...prev, { role: 'assistant', content: aiReply }]);
 
-═══════════════════════════════════
-CORE RULES — NEVER BREAK THESE
-═══════════════════════════════════
-1. CURRENCY: ALL money is in Indian Rupees. ALWAYS write ₹ (e.g. ₹2,49,900). NEVER write USD, dollars, or any non-INR symbol.
-2. COUNTS: Deal counts, invoice counts, candidate counts are plain numbers — never add ₹ to them.
-3. VENDORS: You have data for all 3 vendors. Always name the vendor when citing a figure.
-4. FIELD NAME REPHRASING: Translate raw field names into natural business language:
-   - profitInvoiced / Realized Revenue → "Revenue Earned"
-   - lossDropped / Loss Dropped → "Revenue Lost"
-   - atRiskSustenance / At Risk → "At-Risk Revenue"
-   - invoicesGenerated → "Invoices Raised"
-   - invoicesPaid → "Amount Collected"
-   - joined / Gross Deals → "Placements Made"
-   - pipeline → "Active Pipeline"
-   - value → monetary amount; count → number of candidates/deals
-
-═══════════════════════════════════
-RESPONSE FORMAT — ALWAYS FOLLOW
-═══════════════════════════════════
-For every answer:
-1. Start with a **bold headline** summarising the answer in one sentence.
-2. Use bullet points with icons for each metric:
-   - 📊 for pipeline / deal figures
-   - ✅ for positive outcomes (revenue earned, collected)
-   - ⚠️ for risks or losses (at-risk, dropped)
-   - 🧾 for invoice details
-   - 🏢 for vendor/company comparisons
-3. Group by vendor when multiple vendors are involved.
-4. End with a **💡 Key Takeaway** — one sentence insight.
-5. Keep the total response concise (under 200 words) unless a detailed breakdown is explicitly asked.
-
-═══════════════════════════════════
-METRIC DEFINITIONS
-═══════════════════════════════════
-- Active Pipeline: Candidates currently in hiring funnel (Sourced → Offer Accepted). Value = estimated CTC worth.
-- Placements Made: Candidates who joined a client. Value = their annual CTC.
-- Revenue Earned: Actual billing to client ≈ 8.33% of CTC per placement.
-- Invoices Raised: Total invoice value billed to clients.
-- Amount Collected: Cash actually received from clients.
-- Pending / Outstanding: Invoices Raised − Amount Collected.
-- Revenue Lost: Value of candidates who dropped after joining.
-- At-Risk Revenue: Value of candidates in probation who may drop.
-
-═══════════════════════════════════
-VENDOR SHEETS (ALL 3 AVAILABLE)
-═══════════════════════════════════
-- 🏢 Touchmark Workforce
-- 🏢 Touchmark Descience
-- 🏢 DOSC Placement
-
-DATA:
-${readableMetrics}`
-                : `You are RecruitPulse AI — a senior analytics advisor for Touchmark, an Indian staffing company. All money is ₹ (INR). Be professional, structured, and use bullet points with icons.`;
-
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: 'openai/gpt-oss-20b',
-                    messages: [
-                        { role: 'system', content: systemContent },
-                        ...messages,
-                        userMessage,
-                    ],
-                    max_tokens: 700,
-                    temperature: 0.2,
-                }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data?.error?.message || 'API Error');
+                // Save to cache
+                const updatedCache = pruneExpired({ ...readCache(), [cacheKey]: { answer: aiReply, metricsFingerprint, timestamp: Date.now() } });
+                writeCache(updatedCache);
+                setIsLoading(false);
             }
-
-            const aiReply = data?.choices?.[0]?.message?.content ?? 'Sorry, I could not get a response.';
-            setMessages((prev) => [...prev, { role: 'assistant', content: aiReply }]);
         } catch (err: any) {
             setMessages((prev) => [
                 ...prev,
                 { role: 'assistant', content: `⚠️ Error: ${err.message ?? 'Something went wrong. Please try again.'}` },
             ]);
-        } finally {
             setIsLoading(false);
         }
     };

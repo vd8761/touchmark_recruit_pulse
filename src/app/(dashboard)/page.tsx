@@ -131,7 +131,7 @@ export default async function Dashboard() {
     }
 
     // Monthly trend aggregation
-    pos.closures.forEach(closure => {
+    pos.closures?.forEach((closure: any) => {
       const month = new Date(closure.closure_date).toLocaleString('default', { month: 'short' });
       monthlyClosuresMap[month] = (monthlyClosuresMap[month] || 0) + closure.closed_count;
     });

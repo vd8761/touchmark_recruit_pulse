@@ -160,7 +160,7 @@ ${readableMetrics}`
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: 'openai/gpt-oss-20b',
+                model: 'gpt-4o',
                 messages: [
                     { role: 'system', content: systemContent },
                     ...conversationHistory.map(m => ({ role: m.role, content: m.content })),

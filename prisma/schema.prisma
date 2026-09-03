@@ -42,6 +42,7 @@ model User {
   position_closures  PositionClosure[] @relation("ClosureCreator")
   audit_logs         AuditLog[]        @relation("AuditModifier")
   settings_updated   AppSetting[]      @relation("SettingUpdater")
+  ai_chat_sessions   AiChatSession[]
 }
 
 model Client {
@@ -154,3 +155,23 @@ model Department {
   name        String   @unique
   created_at  DateTime @default(now())
 }
+
+model AiChatSession {
+  id         String          @id @default(uuid())
+  title      String          // Auto-generated title based on first prompt
+  user_id    String
+  user       User            @relation(fields: [user_id], references: [id])
+  created_at DateTime        @default(now())
+  updated_at DateTime        @updatedAt
+  messages   AiChatMessage[]
+}
+
+model AiChatMessage {
+  id         String        @id @default(uuid())
+  session_id String
+  session    AiChatSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  role       String        // "user" or "assistant"
+  content    String        @db.Text
+  created_at DateTime      @default(now())
+}
+

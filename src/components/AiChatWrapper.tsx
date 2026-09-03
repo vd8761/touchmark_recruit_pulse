@@ -1,8 +1,9 @@
-import AiChatModal from '@/components/AiChatModal';
 import { getSheetMetrics } from '@/lib/sheets';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import AiChatModal from '@/components/AiChatModal';
+import AiChatWindow from '@/components/AiChatWindow';
 
 /**
  * Strips the heavy raw arrays from sheet metrics and returns only
@@ -91,7 +92,7 @@ function buildLeanVendorSummary(data: any, isDescience: boolean): any {
   };
 }
 
-export default async function AiChatWrapper() {
+export default async function AiChatWrapper({ isFullPage = false }: { isFullPage?: boolean }) {
   const session = await getServerSession(authOptions);
   let vendorSummaries: any = null;
   let appData: any = null;
@@ -234,5 +235,9 @@ export default async function AiChatWrapper() {
 
   const fullContext = JSON.stringify({ sheetMetrics: vendorSummaries, appData });
 
+  if (isFullPage) {
+    return <AiChatWindow metricsContext={fullContext} />;
+  }
+  
   return <AiChatModal metricsContext={fullContext} />;
 }

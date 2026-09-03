@@ -150,7 +150,7 @@ export default async function AiChatWrapper() {
               name: true,
               email: true,
               status: true,
-              role: { select: { name: true } },
+              role: { select: { role_name: true } },
             },
           })
         : Promise.resolve([]),
@@ -222,7 +222,7 @@ export default async function AiChatWrapper() {
               total: users.value.length,
               list: users.value.map((u: any) => ({
                 name: u.name,
-                role: u.role?.name,
+                role: u.role?.role_name,
                 status: u.status,
               })),
             }

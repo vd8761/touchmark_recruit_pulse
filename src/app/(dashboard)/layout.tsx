@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import AiChatWrapper from "@/components/AiChatWrapper";
 
 export default function DashboardLayout({
   children,
@@ -17,6 +18,7 @@ export default function DashboardLayout({
           {children}
         </main>
       </div>
+      <AiChatWrapper />
     </div>
   );
 }

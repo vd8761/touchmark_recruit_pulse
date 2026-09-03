@@ -573,7 +573,6 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
           </CardContent>
         </Card>
       </div>
-
     </div>
   );
 }

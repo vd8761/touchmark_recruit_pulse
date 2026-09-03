@@ -28,21 +28,32 @@ export default async function Dashboard() {
   const randomMessage = dailyMessages[Math.floor(Math.random() * dailyMessages.length)];
 
   // --- Fetch Data ---
-  const [clients, positions, recentLogs, settingsRow] = await Promise.all([
-    prisma.client.findMany({ where: { deleted_at: null } }),
-    prisma.position.findMany({ 
-      where: { deleted_at: null },
-      include: { client: true, closures: true }
-    }),
-    prisma.auditLog.findMany({
-      orderBy: { timestamp: 'desc' },
-      take: 5,
-      include: { modifier: true }
-    }),
-    prisma.appSetting.findMany({ 
-      where: { key: { in: ["currencyCode", "currencyLocale"] } } 
-    })
-  ]);
+  let clients: any[] = [];
+  let positions: any[] = [];
+  let recentLogs: any[] = [];
+  let settingsRow: any[] = [];
+  let dbError = false;
+
+  try {
+    [clients, positions, recentLogs, settingsRow] = await Promise.all([
+      prisma.client.findMany({ where: { deleted_at: null } }),
+      prisma.position.findMany({ 
+        where: { deleted_at: null },
+        include: { client: true, closures: true }
+      }),
+      prisma.auditLog.findMany({
+        orderBy: { timestamp: 'desc' },
+        take: 5,
+        include: { modifier: true }
+      }),
+      prisma.appSetting.findMany({ 
+        where: { key: { in: ["currencyCode", "currencyLocale"] } } 
+      })
+    ]);
+  } catch (error) {
+    console.error("Database connection error:", error);
+    dbError = true;
+  }
 
   let currencyCode = "USD";
   let currencyLocale = "en-US";
@@ -204,6 +215,16 @@ export default async function Dashboard() {
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-12">
       
+      {dbError && (
+        <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 shadow-sm flex items-start gap-3">
+          <XCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-bold">Database Connection Failed</h4>
+            <p className="text-sm mt-1">We couldn't connect to the Neon PostgreSQL database. It may be asleep or experiencing a temporary timeout. Please wait a moment and refresh the page.</p>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-5 sm:p-6 rounded-[16px] border border-slate-200 shadow-sm relative overflow-hidden">
         <div className="relative z-10">

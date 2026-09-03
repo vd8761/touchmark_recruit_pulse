@@ -8,13 +8,15 @@ import Link from 'next/link';
 export default async function SheetMetricsPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+
+
   try {
     const searchParams = await props.searchParams;
     const vendorParam = searchParams?.vendor;
     const vendor = vendorParam === 'descience' ? 'descience' : vendorParam === 'dosc' ? 'dosc' : 'workforce';
 
     const data = await getSheetMetrics(vendor);
-    
+
     if (vendor === 'descience') {
       return <DescienceClient data={data as any} vendor={vendor} />;
     }

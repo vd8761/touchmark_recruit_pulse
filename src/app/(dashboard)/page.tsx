@@ -50,8 +50,8 @@ export default async function Dashboard() {
         where: { key: { in: ["currencyCode", "currencyLocale"] } } 
       })
     ]);
-  } catch (error) {
-    console.error("Database connection error:", error);
+  } catch (error: any) {
+    console.warn("Database connection error (likely Neon waking up):", error.message || error);
     dbError = true;
   }
 

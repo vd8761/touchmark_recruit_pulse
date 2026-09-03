@@ -31,11 +31,100 @@ export default function AiChatModal({ metricsContext }: { metricsContext?: strin
     };
     useEffect(() => scrollToBottom(), [messages]);
 
+    const [randomCards, setRandomCards] = useState<any[]>([]);
+
     useEffect(() => {
         if (isOpen) {
             setTimeout(() => textareaRef.current?.focus(), 300);
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (messages.length === 0) {
+            let dynamicPrompts: any[] = [];
+            
+            try {
+                if (metricsContext) {
+                    const parsed = JSON.parse(metricsContext);
+                    const positions = parsed?.appData?.positions?.list || [];
+                    const clients = parsed?.appData?.clients?.list || [];
+                    
+                    // 1. Pipeline Prompt
+                    dynamicPrompts.push({
+                        title: "Revenue Pipeline",
+                        subtitle: "What is the total expected revenue pipeline right now?",
+                        icon: "📈"
+                    });
+
+                    // 2. Client specific prompts
+                    if (clients.length > 0) {
+                        const randomClient = clients[Math.floor(Math.random() * clients.length)];
+                        if (randomClient && randomClient.company_name) {
+                            dynamicPrompts.push({
+                                title: `${randomClient.company_name} Overview`,
+                                subtitle: `Give me a summary of all active requirements and pipeline for ${randomClient.company_name}.`,
+                                icon: "🏢"
+                            });
+                        }
+                    } else {
+                        dynamicPrompts.push({
+                            title: "Top Clients",
+                            subtitle: "Which clients have the most requirements right now?",
+                            icon: "🏢"
+                        });
+                    }
+
+                    // 3. Position specific prompts
+                    if (positions.length > 0) {
+                        const randomRole = positions[Math.floor(Math.random() * positions.length)];
+                        if (randomRole && randomRole.role && randomRole.client) {
+                            dynamicPrompts.push({
+                                title: `Status: ${randomRole.role}`,
+                                subtitle: `What is the current status of the ${randomRole.role} role for ${randomRole.client}?`,
+                                icon: "🔍"
+                            });
+                            dynamicPrompts.push({
+                                title: "Deal Value",
+                                subtitle: `What is the total expected deal value for the ${randomRole.role} position?`,
+                                icon: "💵"
+                            });
+                        }
+                    } else {
+                        dynamicPrompts.push({
+                            title: "High Priority Roles",
+                            subtitle: "Show me all high priority open positions",
+                            icon: "🚨"
+                        });
+                    }
+
+                    // 4. Analytics Prompt
+                    dynamicPrompts.push({
+                        title: "Monthly Summary",
+                        subtitle: "Summarize placements and revenue for this month",
+                        icon: "📊"
+                    });
+                } else {
+                    // Fallback if no context
+                    dynamicPrompts = [
+                        { title: "High Priority Roles", subtitle: "Show me all high priority open positions", icon: "🚨" },
+                        { title: "Revenue Pipeline", subtitle: "What is the total expected revenue pipeline?", icon: "📈" },
+                        { title: "Top Clients", subtitle: "Which clients have the most requirements right now?", icon: "🏢" },
+                        { title: "Monthly Summary", subtitle: "Summarize placements and revenue for this month", icon: "📊" }
+                    ];
+                }
+            } catch (e) {
+                dynamicPrompts = [
+                    { title: "High Priority Roles", subtitle: "Show me all high priority open positions", icon: "🚨" },
+                    { title: "Revenue Pipeline", subtitle: "What is the total expected revenue pipeline?", icon: "📈" },
+                    { title: "Top Clients", subtitle: "Which clients have the most requirements right now?", icon: "🏢" },
+                    { title: "Monthly Summary", subtitle: "Summarize placements and revenue for this month", icon: "📊" }
+                ];
+            }
+
+            const shuffled = dynamicPrompts.sort(() => 0.5 - Math.random());
+            setRandomCards(shuffled.slice(0, 4));
+        }
+    }, [messages.length, activeSessionId, isOpen, metricsContext]);
 
     // Fetch sessions on load
     useEffect(() => {
@@ -93,8 +182,9 @@ export default function AiChatModal({ metricsContext }: { metricsContext?: strin
         }
     };
 
-    const sendMessage = async () => {
-        const trimmed = input.trim();
+    const sendMessage = async (overrideText?: string | React.MouseEvent) => {
+        const rawText = typeof overrideText === 'string' ? overrideText : input;
+        const trimmed = rawText.trim();
         if (!trimmed || isLoading) return;
 
         let currentSessionId = activeSessionId;
@@ -445,9 +535,13 @@ ${readableMetrics}`
                         <div className="p-4 border-b border-orange-50">
                             <button 
                                 onClick={handleNewChat}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-[#f0a500] to-[#e07b00] text-white rounded-lg font-medium shadow-sm hover:shadow-md transition-shadow"
+                                className="w-full flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-[#f0a500] to-[#e07b00] text-white rounded-lg text-sm font-semibold shadow-sm hover:shadow-md transition-shadow"
                             >
-                                <span>➕</span> New Chat
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                New Chat
                             </button>
                         </div>
                         
@@ -484,12 +578,31 @@ ${readableMetrics}`
                         <div className="flex-1 overflow-y-auto p-4 md:p-8">
                             <div className="max-w-4xl mx-auto space-y-6">
                                 {messages.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-center space-y-4 mt-20">
-                                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#f0a500] to-[#e07b00] flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                                            AI
+                                    <div className="flex flex-col items-center justify-center h-full space-y-10 mt-10 md:mt-20">
+                                        <div className="text-center space-y-4">
+                                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#f0a500] to-[#e07b00] flex items-center justify-center text-white text-2xl font-bold shadow-lg mx-auto">
+                                                AI
+                                            </div>
+                                            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">How can I help you today?</h2>
                                         </div>
-                                        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">How can I help you today?</h2>
-                                        <p className="text-slate-500 max-w-md">Ask me about open positions, revenue pipelines, or candidate metrics.</p>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl w-full mx-auto px-4">
+                                            {randomCards.map((card, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => sendMessage(card.subtitle)}
+                                                    className="flex flex-col items-start p-4 bg-white border border-orange-100 rounded-xl hover:bg-orange-50/50 hover:border-orange-200 transition-all text-left group shadow-sm hover:shadow"
+                                                >
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-lg">{card.icon}</span>
+                                                        <span className="font-semibold text-slate-700 text-sm">{card.title}</span>
+                                                    </div>
+                                                    <span className="text-slate-500 text-xs font-medium pl-8 group-hover:text-slate-600 transition-colors">
+                                                        "{card.subtitle}"
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 ) : (
                                     messages.map((msg, idx) => (
@@ -569,7 +682,14 @@ ${readableMetrics}`
                     <span className="absolute inset-0 rounded-full bg-[#f0a500] opacity-40 animate-ping" />
                 )}
                 <button
-                    onClick={() => setIsOpen((prev) => !prev)}
+                    onClick={() => {
+                        if (!isOpen) {
+                            setActiveSessionId(null);
+                            setMessages([]);
+                            setInput('');
+                        }
+                        setIsOpen(!isOpen);
+                    }}
                     className={`relative flex items-center gap-2 px-4 h-12 rounded-full bg-gradient-to-r from-[#f0a500] to-[#e07b00] text-white shadow-lg hover:shadow-xl font-semibold text-sm transition-all duration-300 hover:scale-105 ${isOpen ? 'scale-95' : ''}`}
                     aria-label="Open RecruitPulse AI chat"
                 >

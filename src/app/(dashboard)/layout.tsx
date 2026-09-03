@@ -1,6 +1,6 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
-import FloatingAiButton from "@/components/FloatingAiButton";
+import AiChatWrapper from "@/components/AiChatWrapper";
 
 export default function DashboardLayout({
   children,
@@ -18,7 +18,7 @@ export default function DashboardLayout({
           {children}
         </main>
       </div>
-      <FloatingAiButton />
+      <AiChatWrapper isFullPage={false} />
     </div>
   );
 }

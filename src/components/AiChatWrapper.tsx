@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import AiChatModal from '@/components/AiChatModal';
-import AiChatWindow from '@/components/AiChatWindow';
 
 /**
  * Strips the heavy raw arrays from sheet metrics and returns only
@@ -235,9 +234,5 @@ export default async function AiChatWrapper({ isFullPage = false }: { isFullPage
 
   const fullContext = JSON.stringify({ sheetMetrics: vendorSummaries, appData });
 
-  if (isFullPage) {
-    return <AiChatWindow metricsContext={fullContext} />;
-  }
-  
   return <AiChatModal metricsContext={fullContext} />;
 }

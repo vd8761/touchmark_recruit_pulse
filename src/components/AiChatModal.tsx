@@ -320,7 +320,7 @@ ${readableMetrics}`
                     </div>
                     <div className="flex-1">
                         <p className="text-white font-bold text-sm leading-tight drop-shadow-sm">RecruitPulse AI</p>
-                        <p className="text-orange-100 text-xs">Powered by Groq · GPT OSS 20B</p>
+                        <p className="text-orange-100 text-[11px] font-medium tracking-wide leading-none mt-0.5">Intelligent Analytics Assistant</p>
                     </div>
 
                     {/* Close */}

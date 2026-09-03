@@ -59,7 +59,7 @@ export default function AiChatModal({ metricsContext }: AiChatModalProps) {
     const [messages, setMessages] = useState<Message[]>([
         {
             role: 'assistant',
-            content: "👋 Hi! I'm **RecruitPulse AI**.\n\nI can answer questions about your current sheet metrics — pipeline, revenue, deals, and more. What would you like to know?",
+            content: "👋 Hi! I'm **RecruitPulse AI**.\n\nI can help you with any part of the application — sheet metrics, clients, open positions, users, revenue, invoices, and more. What would you like to know?",
         },
     ]);
     const [input, setInput] = useState('');
@@ -90,61 +90,71 @@ export default function AiChatModal({ metricsContext }: AiChatModalProps) {
         const readableMetrics = metricsContext ? buildContext(metricsContext) : null;
 
         const systemContent = readableMetrics
-            ? `You are RecruitPulse AI — a senior analytics advisor for Touchmark, an Indian recruitment & staffing company.
+            ? `You are RecruitPulse AI — an intelligent assistant for the Touchmark Recruit Pulse platform, an Indian recruitment & staffing company.
+
+You have access to TWO separate data sources. Understand the difference clearly:
+
+═══════════════════════════════════
+DATA SOURCE 1: SHEET METRICS (Google Sheets — External)
+═══════════════════════════════════
+- This is an external Google Sheet tracking closed deals/placements.
+- Contains: pipeline (active candidates), revenue earned, invoices raised, amount collected, revenue lost, at-risk revenue.
+- Vendors: Touchmark Workforce, Touchmark Descience, DOSC Placement.
+- Use this for revenue, billing, and placement outcome questions.
+
+═══════════════════════════════════
+DATA SOURCE 2: APPLICATION DATABASE (Internal)
+═══════════════════════════════════
+- This is the live app database with Clients, Positions (open job requirements), and Users.
+- POSITIONS have full financial data:
+  - perResourceCostINR = the fee/cost per candidate for that role (in ₹)
+  - openings = number of candidates required for that role
+  - totalDealValueINR = perResourceCostINR × openings (pre-calculated for you)
+  - positions.totalDealValueINR = aggregate total deal value of ALL open positions
+- OVERALL APP PIPELINE: Use \`appData.overallPipeline\` for platform-wide metrics (matches the Dashboard exactly).
+  - \`pendingPipelineINR\`: The expected revenue from all open/active roles (Overall Pending Pipeline).
+  - \`realizedRevenueINR\`: The revenue from all closed placements (Overall Realized Revenue).
+- Use this for questions about open roles, current deal pipeline value, clients, or team.
 
 ═══════════════════════════════════
 CORE RULES — NEVER BREAK THESE
 ═══════════════════════════════════
-1. CURRENCY: ALL money is in Indian Rupees. ALWAYS write ₹ (e.g. ₹2,49,900). NEVER write USD, dollars, or any non-INR symbol.
-2. COUNTS: Deal counts, invoice counts, candidate counts are plain numbers — never add ₹ to them.
-3. VENDORS: You have data for all 3 vendors. Always name the vendor when citing a figure.
-4. FIELD NAME REPHRASING: Translate raw field names into natural business language:
-   - profitInvoiced / Realized Revenue → "Revenue Earned"
-   - lossDropped / Loss Dropped → "Revenue Lost"
-   - atRiskSustenance / At Risk → "At-Risk Revenue"
+1. CURRENCY: ALL money is in Indian Rupees. ALWAYS write ₹ (e.g. ₹2,49,900). NEVER write USD or any non-INR symbol.
+2. COUNTS: Position counts, deal counts, candidate counts are plain numbers — never add ₹.
+3. DEAL VALUE FROM POSITIONS: To answer "total deal value of open positions", use appData.positions.totalDealValueINR directly. Do NOT say data is unavailable.
+4. GENERAL KNOWLEDGE: NEVER answer questions unrelated to this application (e.g. "Who is the CEO of Google?"). Politely decline.
+5. FIELD NAME REPHRASING: Translate raw field names into natural business language:
+   - profitInvoiced → "Revenue Earned"
+   - lossDropped → "Revenue Lost"
+   - atRiskSustenance → "At-Risk Revenue"
    - invoicesGenerated → "Invoices Raised"
    - invoicesPaid → "Amount Collected"
-   - joined / Gross Deals → "Placements Made"
+   - joined → "Placements Made"
    - pipeline → "Active Pipeline"
-   - value → monetary amount; count → number of candidates/deals
+   - perResourceCostINR → "Fee per Candidate"
+   - totalDealValueINR → "Deal Value"
 
 ═══════════════════════════════════
 RESPONSE FORMAT — ALWAYS FOLLOW
 ═══════════════════════════════════
-For every answer:
 1. Start with a **bold headline** summarising the answer in one sentence.
-2. Use bullet points with icons for each metric:
-   - 📊 for pipeline / deal figures
-   - ✅ for positive outcomes (revenue earned, collected)
-   - ⚠️ for risks or losses (at-risk, dropped)
+2. Use bullet points with icons for each data point:
+   - 📊 for pipeline / deal / position figures
+   - ✅ for positive outcomes (revenue earned, collected, active clients)
+   - ⚠️ for risks or losses (at-risk, dropped, on-hold positions)
    - 🧾 for invoice details
-   - 🏢 for vendor/company comparisons
-3. Group by vendor when multiple vendors are involved.
+   - 🏢 for client/vendor comparisons
+   - 👤 for user/team information
+3. For lists of positions, clients, or users — ALWAYS render them as a **markdown table** with columns. Example:
+   | Role | Client | Location | Priority | Deal Value | Expected Join |
+   |------|--------|----------|----------|------------|---------------|
+   | Developer | Esales | Chennai | High | ₹4,00,000 | 07 Sep 2026 |
 4. End with a **💡 Key Takeaway** — one sentence insight.
-5. Keep the total response concise (under 200 words) unless a detailed breakdown is explicitly asked.
-
-═══════════════════════════════════
-METRIC DEFINITIONS
-═══════════════════════════════════
-- Active Pipeline: Candidates currently in hiring funnel (Sourced → Offer Accepted). Value = estimated CTC worth.
-- Placements Made: Candidates who joined a client. Value = their annual CTC.
-- Revenue Earned: Actual billing to client ≈ 8.33% of CTC per placement.
-- Invoices Raised: Total invoice value billed to clients.
-- Amount Collected: Cash actually received from clients.
-- Pending / Outstanding: Invoices Raised − Amount Collected.
-- Revenue Lost: Value of candidates who dropped after joining.
-- At-Risk Revenue: Value of candidates in probation who may drop.
-
-═══════════════════════════════════
-VENDOR SHEETS (ALL 3 AVAILABLE)
-═══════════════════════════════════
-- 🏢 Touchmark Workforce
-- 🏢 Touchmark Descience
-- 🏢 DOSC Placement
+5. Keep the total response concise (under 400 words) unless a detailed breakdown is explicitly asked.
 
 DATA:
 ${readableMetrics}`
-            : `You are RecruitPulse AI — a senior analytics advisor for Touchmark, an Indian staffing company. All money is ₹ (INR). Be professional, structured, and use bullet points with icons.`;
+            : `You are RecruitPulse AI — an intelligent assistant for the Touchmark Recruit Pulse platform, an Indian staffing company. All money is ₹ (INR). Be professional, structured, and use bullet points with icons. Refuse general knowledge questions politely.`;
 
         const response = await fetch('/api/chat', {
             method: 'POST',
@@ -153,10 +163,10 @@ ${readableMetrics}`
                 model: 'openai/gpt-oss-20b',
                 messages: [
                     { role: 'system', content: systemContent },
-                    ...conversationHistory,
+                    ...conversationHistory.map(m => ({ role: m.role, content: m.content })),
                     { role: 'user', content: question },
                 ],
-                max_tokens: 700,
+                max_tokens: 2000,
                 temperature: 0.2,
             }),
         });
@@ -285,17 +295,135 @@ ${readableMetrics}`
         }
     };
 
+    /** Renders inline text: **bold**, `code` */
+    const renderInline = (text: string, keyPrefix: string) => {
+        const tokens = text.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
+        return tokens.map((tok, i) => {
+            if (tok.startsWith('**') && tok.endsWith('**'))
+                return <strong key={`${keyPrefix}-b${i}`}>{tok.slice(2, -2)}</strong>;
+            if (tok.startsWith('`') && tok.endsWith('`'))
+                return <code key={`${keyPrefix}-c${i}`} className="bg-orange-50 text-orange-700 rounded px-1 py-0.5 text-[11px] font-mono">{tok.slice(1, -1)}</code>;
+            return tok;
+        });
+    };
+
+    /** Full markdown renderer: tables, headings, bullets, dividers, bold */
     const formatMessage = (text: string) => {
-        return text.split('\n').map((line, i) => {
-            const parts = line.split(/\*\*(.*?)\*\*/g);
-            return (
-                <p key={i} className={i > 0 ? 'mt-1' : ''}>
-                    {parts.map((part, j) =>
-                        j % 2 === 1 ? <strong key={j}>{part}</strong> : part
-                    )}
+        const lines = text.split('\n');
+        const output: React.ReactNode[] = [];
+        let i = 0;
+
+        while (i < lines.length) {
+            const line = lines[i];
+
+            // ── Horizontal rule ─────────────────────────────────────────
+            if (/^[-*═]{3,}$/.test(line.trim())) {
+                output.push(<hr key={i} className="my-2 border-orange-100" />);
+                i++; continue;
+            }
+
+            // ── Heading: ## or ### ───────────────────────────────────────
+            if (/^#{1,3}\s/.test(line)) {
+                const level = (line.match(/^(#+)/) || [''])[0].length;
+                const headingText = line.replace(/^#+\s/, '');
+                const cls = level === 1
+                    ? 'text-base font-bold text-slate-900 mt-3 mb-1'
+                    : level === 2
+                    ? 'text-sm font-bold text-slate-800 mt-2 mb-1'
+                    : 'text-xs font-bold text-slate-700 mt-1 mb-0.5';
+                output.push(<p key={i} className={cls}>{renderInline(headingText, `h${i}`)}</p>);
+                i++; continue;
+            }
+
+            // ── Markdown Table: lines starting with | ───────────────────
+            if (line.trim().startsWith('|')) {
+                const tableRows: string[][] = [];
+                while (i < lines.length && lines[i].trim().startsWith('|')) {
+                    const row = lines[i].trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+                    tableRows.push(row);
+                    i++;
+                }
+                // Filter out separator rows (e.g. |---|---|)
+                const nonSep = tableRows.filter(r => !r.every(c => /^[-:\s]+$/.test(c)));
+                if (nonSep.length > 0) {
+                    const [header, ...rows] = nonSep;
+                    output.push(
+                        <div key={`table-${i}`} className="overflow-x-auto my-3 rounded-lg border border-orange-100 shadow-sm">
+                            <table className="w-full text-xs text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gradient-to-r from-[#f0a500]/15 to-[#e07b00]/10">
+                                        {header.map((h, ci) => (
+                                            <th key={ci} className="px-3 py-2 font-bold text-slate-700 border-b border-orange-100 whitespace-nowrap">{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rows.map((row, ri) => (
+                                        <tr key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-orange-50/30'}>
+                                            {row.map((cell, ci) => {
+                                                // Colour-code priority cells
+                                                let cellCls = 'px-3 py-2 text-slate-700 border-b border-orange-50 align-middle';
+                                                let badge: React.ReactNode = null;
+                                                if (/^(High|Critical)$/i.test(cell)) badge = <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">{cell}</span>;
+                                                else if (/^Medium$/i.test(cell)) badge = <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">{cell}</span>;
+                                                else if (/^(Low|Open)$/i.test(cell)) badge = <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">{cell}</span>;
+                                                else if (/^(Closed|Inactive)$/i.test(cell)) badge = <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">{cell}</span>;
+                                                else if (/^On Hold$/i.test(cell)) badge = <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">{cell}</span>;
+                                                return (
+                                                    <td key={ci} className={cellCls}>
+                                                        {badge ?? <span>{renderInline(cell, `cell-${ri}-${ci}`)}</span>}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    );
+                }
+                continue;
+            }
+
+            // ── Bullet: - or * or numbered ───────────────────────────────
+            if (/^([-*]|\d+\.)\s/.test(line)) {
+                const bulletLines: string[] = [];
+                while (i < lines.length && /^([-*]|\d+\.)\s/.test(lines[i])) {
+                    bulletLines.push(lines[i]);
+                    i++;
+                }
+                output.push(
+                    <ul key={`ul-${i}`} className="my-1.5 space-y-1 pl-1">
+                        {bulletLines.map((bl, bi) => {
+                            const content = bl.replace(/^([-*]|\d+\.)\s/, '');
+                            return (
+                                <li key={bi} className="flex items-start gap-1.5 text-sm text-slate-700">
+                                    <span className="mt-0.5 text-[#f0a500] flex-shrink-0">•</span>
+                                    <span>{renderInline(content, `li-${bi}`)}</span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                );
+                continue;
+            }
+
+            // ── Empty line → small spacer ────────────────────────────────
+            if (line.trim() === '') {
+                output.push(<div key={`sp-${i}`} className="h-1" />);
+                i++; continue;
+            }
+
+            // ── Default paragraph ────────────────────────────────────────
+            output.push(
+                <p key={i} className="text-sm text-slate-700 leading-relaxed">
+                    {renderInline(line, `p${i}`)}
                 </p>
             );
-        });
+            i++;
+        }
+
+        return output;
     };
 
     return (
@@ -352,7 +480,9 @@ ${readableMetrics}`
                                         : 'bg-white text-gray-800 border border-orange-100 rounded-tl-sm'
                                     }`}
                             >
-                                {formatMessage(msg.content)}
+                                <div className={msg.role === 'user' ? 'text-white [&_p]:text-white [&_li]:text-white [&_span]:text-white [&_strong]:text-white' : ''}>
+                                    {formatMessage(msg.content)}
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -383,7 +513,7 @@ ${readableMetrics}`
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Ask about your metrics..."
+                        placeholder="Ask about metrics, clients, positions..."
                         rows={1}
                         className="flex-1 resize-none border border-orange-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-orange-300 focus:outline-none focus:ring-2 focus:ring-[#f0a500]/30 focus:border-[#f0a500] transition-all max-h-32 overflow-y-auto bg-white [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
                         style={{ lineHeight: '1.5' }}

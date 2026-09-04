@@ -565,17 +565,17 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
 
       {/* Outstanding Invoices Section */}
       <div className="mb-8">
-        <Card className="w-full border-amber-200 shadow-sm">
-          <CardHeader className="bg-amber-50/50 border-b border-amber-100 rounded-t-xl pb-4">
+        <Card className="w-full shadow-sm">
+          <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <CardTitle className="text-amber-900 flex items-center gap-2 text-base font-bold">
-                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <CardTitle className="text-slate-800 flex items-center gap-2 text-base font-bold">
+                  <AlertTriangle className="h-5 w-5 text-slate-500" />
                   Outstanding Invoice Details
                 </CardTitle>
-                <CardDescription className="text-amber-700 mt-1">Pending invoices sorted by highest amount. Filters automatically by selected month.</CardDescription>
+                <CardDescription className="text-slate-500 mt-1">Pending invoices sorted by highest amount. Filters automatically by selected month.</CardDescription>
               </div>
-              <div className="bg-white px-3 py-1 rounded-full border border-amber-200 text-sm font-bold text-amber-700 shadow-sm whitespace-nowrap self-start md:self-auto">
+              <div className="bg-white px-3 py-1 rounded-full border border-slate-200 text-sm font-bold text-slate-700 shadow-sm whitespace-nowrap self-start md:self-auto">
                 {dynamicAnalytics.outstandingInvoices?.length || 0} Invoices
               </div>
             </div>
@@ -594,13 +594,13 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
                 <tbody className="divide-y divide-slate-100">
                   {dynamicAnalytics.outstandingInvoices && dynamicAnalytics.outstandingInvoices.length > 0 ? (
                     dynamicAnalytics.outstandingInvoices.map((inv, idx) => (
-                      <tr key={idx} className="hover:bg-amber-50/30 transition-colors">
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
                           {new Date(inv.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900">{inv.invoiceNo || '-'}</td>
                         <td className="px-6 py-4 font-semibold text-slate-900">{inv.company}</td>
-                        <td className="px-6 py-4 font-bold text-amber-600 text-right">{formatCurrency(inv.amount)}</td>
+                        <td className="px-6 py-4 font-bold text-slate-900 text-right">{formatCurrency(inv.amount)}</td>
                       </tr>
                     ))
                   ) : (
@@ -654,10 +654,7 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
                         <td className="px-4 py-3 text-slate-700">{inv.company}</td>
                         <td className="px-4 py-3 font-semibold text-slate-900">{formatCurrency(inv.amount)}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${inv.status === 'Received' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                              inv.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                'bg-slate-100 text-slate-700 border-slate-200'
-                            }`}>
+                          <span className="px-2.5 py-1 rounded-md text-xs font-medium border bg-slate-50 text-slate-700 border-slate-200">
                             {inv.status}
                           </span>
                         </td>

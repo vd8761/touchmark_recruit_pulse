@@ -501,17 +501,17 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
 
       {/* Outstanding Invoices Section */}
       <div className="mb-8">
-        <Card className="w-full border-amber-200 shadow-sm">
-          <CardHeader className="bg-amber-50/50 border-b border-amber-100 rounded-t-xl pb-4">
+        <Card className="w-full shadow-sm">
+          <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <CardTitle className="text-amber-900 flex items-center gap-2 text-base font-bold">
-                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <CardTitle className="text-slate-800 flex items-center gap-2 text-base font-bold">
+                  <AlertTriangle className="h-5 w-5 text-slate-500" />
                   Pending Payment Details
                 </CardTitle>
-                <CardDescription className="text-amber-700 mt-1">Pending payments sorted by highest amount. Filters automatically by selected month.</CardDescription>
+                <CardDescription className="text-slate-500 mt-1">Pending payments sorted by highest amount. Filters automatically by selected month.</CardDescription>
               </div>
-              <div className="bg-white px-3 py-1 rounded-full border border-amber-200 text-sm font-bold text-amber-700 shadow-sm whitespace-nowrap self-start md:self-auto">
+              <div className="bg-white px-3 py-1 rounded-full border border-slate-200 text-sm font-bold text-slate-700 shadow-sm whitespace-nowrap self-start md:self-auto">
                 {dynamicAnalytics.outstandingInvoices?.length || 0} Payments
               </div>
             </div>
@@ -533,23 +533,18 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                     dynamicAnalytics.outstandingInvoices.map((inv, idx) => {
                       const isValidDate = inv.date && !isNaN(new Date(inv.date).getTime());
                       return (
-                      <tr key={idx} className="hover:bg-amber-50/30 transition-colors">
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
                           {isValidDate ? new Date(inv.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : (inv.date || '-')}
                         </td>
                         <td className="px-6 py-4 font-semibold text-slate-900">{inv.company}</td>
                         <td className="px-6 py-4 font-medium text-slate-700">{inv.recruiter || '-'}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ${
-                            (inv.invoiceStatus || 'Pending').toLowerCase().includes('not yet') ? 'bg-rose-100 text-rose-700' :
-                            (inv.invoiceStatus || 'Pending').toLowerCase().includes('partially') ? 'bg-blue-100 text-blue-700' :
-                            (inv.invoiceStatus || 'Pending').toLowerCase().includes('generated') ? 'bg-indigo-100 text-indigo-700' :
-                            'bg-amber-100 text-amber-700'
-                          }`}>
+                          <span className="px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-50 text-slate-700 border border-slate-200">
                             {inv.invoiceStatus || 'Pending'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-bold text-amber-600 text-right">{formatCurrency(inv.balanceAmount)}</td>
+                        <td className="px-6 py-4 font-bold text-slate-900 text-right">{formatCurrency(inv.balanceAmount)}</td>
                       </tr>
                     )})
                   ) : (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Activity, CheckCircle, FileText, Users, AlertTriangle, TrendingUp, TrendingDown, BarChart3, PieChart as PieChartIcon, Filter, Loader2 } from 'lucide-react';
@@ -57,6 +57,15 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
       router.push(`${pathname}?${params.toString()}`);
     });
   };
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      startTransition(() => {
+        router.refresh();
+      });
+    }, 60000); // Auto refresh every 60 seconds
+    return () => clearInterval(intervalId);
+  }, [router]);
 
   const [selectedMonthId, setSelectedMonthId] = useState<string>('all');
 

@@ -26,6 +26,8 @@ type MonthData = {
   atRiskSustenance: { count: number; value: number };
   invoicesGenerated: { count: number; value: number };
   invoicesPaid: { count: number; value: number };
+  tdsAmount: { count: number; value: number };
+  taxableRevenue: { count: number; value: number };
 };
 
 type MetricsData = {
@@ -116,6 +118,14 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
         invoicesPaid: { 
           count: data.months.reduce((acc, m) => acc + m.invoicesPaid.count, 0), 
           value: data.months.reduce((acc, m) => acc + m.invoicesPaid.value, 0) 
+        },
+        tdsAmount: { 
+          count: data.months.reduce((acc, m) => acc + (m.tdsAmount?.count || 0), 0), 
+          value: data.months.reduce((acc, m) => acc + (m.tdsAmount?.value || 0), 0) 
+        },
+        taxableRevenue: { 
+          count: data.months.reduce((acc, m) => acc + (m.taxableRevenue?.count || 0), 0), 
+          value: data.months.reduce((acc, m) => acc + (m.taxableRevenue?.value || 0), 0) 
         }
       }
     : data.months.find(m => m.id === selectedMonthId);
@@ -266,7 +276,7 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
       ) : (
         <>
           {/* Monthly P&L Cards */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 
             {/* Gross Joined */}
             <Card>
@@ -320,6 +330,34 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                 <div className="text-xl md:text-2xl font-bold text-slate-900 tracking-tighter" title={formatCurrency(selectedMonth.invoicesPaid.value)}>{formatCurrency(selectedMonth.invoicesPaid.value)}</div>
                 <p className="text-xs md:text-sm font-medium text-slate-500 mt-1">
                   {selectedMonth.invoicesPaid.count} Invoices Paid
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Taxable Value */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-[13px] font-bold text-slate-600 whitespace-nowrap tracking-tight mr-1">Taxable Value</CardTitle>
+                <FileText className="h-4 w-4 text-slate-400 shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl md:text-2xl font-bold text-slate-900 tracking-tighter" title={formatCurrency(selectedMonth.taxableRevenue?.value || 0)}>{formatCurrency(selectedMonth.taxableRevenue?.value || 0)}</div>
+                <p className="text-xs md:text-sm font-medium text-slate-500 mt-1">
+                  {selectedMonth.taxableRevenue?.count || 0} Invoices
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Total TDS Amount */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-[13px] font-bold text-slate-600 whitespace-nowrap tracking-tight mr-1">Total TDS Amount</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl md:text-2xl font-bold text-slate-900 tracking-tighter" title={formatCurrency(selectedMonth.tdsAmount?.value || 0)}>{formatCurrency(selectedMonth.tdsAmount?.value || 0)}</div>
+                <p className="text-xs md:text-sm font-medium text-slate-500 mt-1">
+                  {selectedMonth.tdsAmount?.count || 0} Invoices
                 </p>
               </CardContent>
             </Card>

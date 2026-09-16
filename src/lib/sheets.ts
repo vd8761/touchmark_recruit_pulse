@@ -1,6 +1,15 @@
 import { google } from 'googleapis';
 
-const cache: Record<string, { data: any, timestamp: number }> = {};
+declare global {
+  var googleSheetsCache: Record<string, { data: any, timestamp: number }> | undefined;
+}
+
+const cache: Record<string, { data: any, timestamp: number }> = globalThis.googleSheetsCache || {};
+
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.googleSheetsCache = cache;
+}
+
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 
@@ -39,9 +48,13 @@ function parseWorkforceMetrics(data: any[]) {
     atRiskSustenance: { count: number; value: number };
     invoicesGenerated: { count: number; value: number };
     invoicesPaid: { count: number; value: number };
+    tdsAmount: { count: number; value: number };
+    taxableRevenue: { count: number; value: number };
   }> = {};
 
   data.forEach((row) => {
+    const candidateName = (row['Name of the Candidate'] || row['Candidate Name'] || row['Candidate'] || '').trim();
+    if (!candidateName) return;
     const status = row['Candidate Status']?.trim() || '';
     const dealValue = parseValue(row['Closed budget (LPA)']);
     
@@ -51,10 +64,10 @@ function parseWorkforceMetrics(data: any[]) {
     const taxableValue = parseValue(row['Taxable Value']);
     
     let revenueAmt = 0;
-    if (taxableValue > 0) {
-      revenueAmt = taxableValue;
-    } else if (totalInvoiceAmount > 0) {
+    if (totalInvoiceAmount > 0) {
       revenueAmt = totalInvoiceAmount;
+    } else if (taxableValue > 0) {
+      revenueAmt = taxableValue;
     } else if (commissionPct > 0) {
       revenueAmt = dealValue * (commissionPct / 100);
     } else {
@@ -79,6 +92,8 @@ function parseWorkforceMetrics(data: any[]) {
           atRiskSustenance: { count: 0, value: 0 },
           invoicesGenerated: { count: 0, value: 0 },
           invoicesPaid: { count: 0, value: 0 },
+          tdsAmount: { count: 0, value: 0 },
+          taxableRevenue: { count: 0, value: 0 },
         };
       }
 
@@ -106,17 +121,29 @@ function parseWorkforceMetrics(data: any[]) {
       const isPartiallyPaid = invoiceStatus === 'partially paid';
 
       let actualPaid = 0;
-      if (isPaid) {
-        actualPaid = revenueAmt;
-      } else if (isPartiallyPaid) {
-        actualPaid = revenueAmt * 0.5; // Assume 50% for partial if unknown
+      if (isPaid || isPartiallyPaid) {
+        const receivedAmountStr = row['Received Amount'];
+        if (receivedAmountStr !== undefined && receivedAmountStr !== null && receivedAmountStr !== '') {
+          actualPaid = parseValue(receivedAmountStr);
+        } else {
+          actualPaid = isPaid ? revenueAmt : (revenueAmt * 0.5);
+        }
       }
       
-      const balanceAmt = Math.max(0, revenueAmt - actualPaid);
+      const tdsAmount = parseValue(row['Total TDS Amount']);
+      const balanceAmt = Math.max(0, revenueAmt - actualPaid - tdsAmount);
 
       if (isInvoiceGenerated) {
         monthBucket.invoicesGenerated.count++;
         monthBucket.invoicesGenerated.value += revenueAmt;
+        if (taxableValue > 0) {
+          monthBucket.taxableRevenue.count++;
+          monthBucket.taxableRevenue.value += taxableValue;
+        }
+        if (tdsAmount > 0) {
+          monthBucket.tdsAmount.count++;
+          monthBucket.tdsAmount.value += tdsAmount;
+        }
       }
 
       if (actualPaid > 0) {
@@ -159,6 +186,8 @@ function parseWorkforceMetrics(data: any[]) {
   }[] = [];
 
   data.forEach((row) => {
+    const candidateName = (row['Name of the Candidate'] || row['Candidate Name'] || row['Candidate'] || '').trim();
+    if (!candidateName) return;
     const status = row['Candidate Status']?.trim() || '';
     const dealValue = parseValue(row['Closed budget (LPA)']);
     const commissionPct = parseValue(row['Commission (%)']);
@@ -166,10 +195,10 @@ function parseWorkforceMetrics(data: any[]) {
     const taxableValue = parseValue(row['Taxable Value']);
     
     let revenueAmt = 0;
-    if (taxableValue > 0) {
-      revenueAmt = taxableValue;
-    } else if (totalInvoiceAmount > 0) {
+    if (totalInvoiceAmount > 0) {
       revenueAmt = totalInvoiceAmount;
+    } else if (taxableValue > 0) {
+      revenueAmt = taxableValue;
     } else if (commissionPct > 0) {
       revenueAmt = dealValue * (commissionPct / 100);
     } else {
@@ -206,13 +235,17 @@ function parseWorkforceMetrics(data: any[]) {
       const isPartiallyPaid = invoiceStatusStr === 'partially paid';
       
       let actualPaid = 0;
-      if (isPaid) {
-        actualPaid = revenueAmt;
-      } else if (isPartiallyPaid) {
-        actualPaid = revenueAmt * 0.5;
+      if (isPaid || isPartiallyPaid) {
+        const receivedAmountStr = row['Received Amount'];
+        if (receivedAmountStr !== undefined && receivedAmountStr !== null && receivedAmountStr !== '') {
+          actualPaid = parseValue(receivedAmountStr);
+        } else {
+          actualPaid = isPaid ? revenueAmt : (revenueAmt * 0.5);
+        }
       }
       
-      const balanceAmt = Math.max(0, revenueAmt - actualPaid);
+      const tdsAmount = parseValue(row['Total TDS Amount']);
+      const balanceAmt = Math.max(0, revenueAmt - actualPaid - tdsAmount);
       if (actualPaid > 0) {
         clientStats[company].paidValue += actualPaid;
       }
@@ -444,6 +477,8 @@ function parseDoscMetrics(data: any[]) {
     atRiskSustenance: { count: number; value: number };
     invoicesGenerated: { count: number; value: number };
     invoicesPaid: { count: number; value: number };
+    tdsAmount: { count: number; value: number };
+    taxableRevenue: { count: number; value: number };
   }> = {};
 
   const recruiterStats: Record<string, { name: string; pipelineDeals: number; pipelineValue: number; closedDeals: number; closedValue: number }> = {};
@@ -454,13 +489,14 @@ function parseDoscMetrics(data: any[]) {
   const allCandidates: any[] = [];
 
   data.forEach((row) => {
-    const candidateName = row['Candidate Name']?.trim() || 'Unknown';
+    const candidateName = (row['Name of the Candidate'] || row['Candidate Name'] || row['Candidate'] || '').trim();
+    if (!candidateName) return;
     const company = row['Company Placed']?.trim() || 'Unknown';
     const collegeName = row['College Name']?.trim() || 'Unknown';
     const placementDate = row['Placement Date'];
 
     // Status is not explicitly provided, but if they have a placement date, we assume 'Joined'
-    const status = placementDate ? 'Joined' : 'Offer Accepted';
+    const status = row['Candidate Status']?.trim() || row['Status']?.trim() || (placementDate ? 'Joined' : 'Offer Accepted');
 
     if (funnelStats[status] !== undefined) {
       funnelStats[status]++;
@@ -487,6 +523,8 @@ function parseDoscMetrics(data: any[]) {
           atRiskSustenance: { count: 0, value: 0 },
           invoicesGenerated: { count: 0, value: 0 },
           invoicesPaid: { count: 0, value: 0 },
+          tdsAmount: { count: 0, value: 0 },
+          taxableRevenue: { count: 0, value: 0 },
         };
       }
 
@@ -501,6 +539,8 @@ function parseDoscMetrics(data: any[]) {
       if (isInvoiceGenerated) {
         monthBucket.invoicesGenerated.count++;
         monthBucket.invoicesGenerated.value += revenueAmt;
+        monthBucket.taxableRevenue.count++;
+        monthBucket.taxableRevenue.value += revenueAmt; // Dosc doesn't have taxable value, so use revenue
       }
 
       if (actualPaid > 0) {

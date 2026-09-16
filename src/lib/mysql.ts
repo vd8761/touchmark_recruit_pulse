@@ -33,6 +33,21 @@ export const payrollDb = new Proxy({} as mysql.Pool, {
   get: (_, prop) => {
     const pool = getPayrollDb();
     const value = (pool as any)[prop];
+    
+    if (prop === 'query' || prop === 'execute') {
+      return async (...args: any[]) => {
+        try {
+          return await value.apply(pool, args);
+        } catch (error: any) {
+          if (error.code === 'ECONNRESET' || error.code === 'PROTOCOL_CONNECTION_LOST' || error.code === 'ETIMEDOUT') {
+            console.warn(`MySQL connection error (${error.code}). Retrying query...`);
+            return await value.apply(pool, args);
+          }
+          throw error;
+        }
+      };
+    }
+    
     return typeof value === 'function' ? value.bind(pool) : value;
   }
 });

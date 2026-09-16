@@ -559,7 +559,7 @@ export default function EmployeesClient({
           </div>
           {/* Month Picker */}
           <Popover open={isMonthPickerOpen} onOpenChange={setIsMonthPickerOpen}>
-            <PopoverTrigger className="inline-flex h-10 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+            <PopoverTrigger className="inline-flex h-10 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
               <CalendarIcon className="w-4 h-4 text-slate-400" />
               {new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' })}
             </PopoverTrigger>
@@ -578,14 +578,14 @@ export default function EmployeesClient({
               <div className="grid grid-cols-3 gap-1.5">
                 {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((mName, i) => (
                   <Button key={mName} variant={i === month ? "default" : "ghost"}
-                    className={`h-8 rounded-lg text-sm ${i === month ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                    className={`h-8 rounded-lg text-sm ${i === month ? 'bg-slate-900 hover:bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
                     onClick={() => handleMonthChange(`${year}-${String(i + 1).padStart(2, '0')}`)}>
                     {mName}
                   </Button>
                 ))}
               </div>
               <div className="mt-3 pt-2.5 border-t border-slate-100 flex justify-end">
-                <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 text-xs font-semibold h-7 px-2"
+                <Button variant="ghost" size="sm" className="text-slate-900 hover:text-slate-700 hover:bg-slate-100 text-xs font-semibold h-7 px-2"
                   onClick={() => { const n = new Date(); handleMonthChange(`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`); }}>
                   This Month
                 </Button>

@@ -18,6 +18,8 @@ export const getPayrollDb = () => {
     connectionLimit: 5,
     queueLimit: 0,
     connectTimeout: 5000, // fail fast after 5s instead of 30s+
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
   });
 
   if (process.env.NODE_ENV !== 'production') {

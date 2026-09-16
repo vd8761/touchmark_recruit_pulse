@@ -190,11 +190,13 @@ export default function EmployeeProfileClient({
     const att = dayData.record;
     if (!att) return <Badge variant="outline">Unknown</Badge>;
 
-    switch(att.attendance_status) {
+    switch(Number(att.attendance_status)) {
       case 1: return <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">Present</Badge>;
-      case 2: return <Badge variant="outline" className="text-rose-600 border-rose-200 bg-rose-50">Absent</Badge>;
-      case 3: return <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">Half Day</Badge>;
-      case 4: return <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">On Leave</Badge>;
+      case 2: return <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">Half Day</Badge>;
+      case 3: return <Badge variant="outline" className="text-rose-600 border-rose-200 bg-rose-50">Absent</Badge>;
+      case 4: return <Badge variant="outline" className="text-slate-600 border-slate-200 bg-slate-50">Week Off</Badge>;
+      case 5: return <Badge variant="outline" className="text-purple-600 border-purple-200 bg-purple-50">Holiday</Badge>;
+      case 6: return <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">On Duty</Badge>;
       case 0: return <Badge variant="outline" className="text-slate-400 border-slate-200 bg-slate-50">Not Marked</Badge>;
       default: return <Badge variant="outline">Unknown</Badge>;
     }

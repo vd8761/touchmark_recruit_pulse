@@ -434,7 +434,7 @@ function parseDoscMetrics(data: any[]) {
 
   const monthlyData: Record<string, {
     monthLabel: string;
-    joined: { count: number; value: number };
+    joined: { count: number; value: number; expectedRevenue: number };
     profitInvoiced: { count: number; value: number };
     lossDropped: { count: number; value: number };
     atRiskSustenance: { count: number; value: number };
@@ -477,7 +477,7 @@ function parseDoscMetrics(data: any[]) {
       if (!monthlyData[monthInfo.key]) {
         monthlyData[monthInfo.key] = {
           monthLabel: monthInfo.label,
-          joined: { count: 0, value: 0 },
+          joined: { count: 0, value: 0, expectedRevenue: 0 },
           profitInvoiced: { count: 0, value: 0 },
           lossDropped: { count: 0, value: 0 },
           atRiskSustenance: { count: 0, value: 0 },

@@ -80,7 +80,7 @@ export default function EmployeesClient({
     }
   };
 
-  const formatCurrency = (val: number | string | null) => {
+  const formatCurrency = (val: number | string | null | undefined) => {
     if (!val) return '₹0';
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(val));
   };

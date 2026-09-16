@@ -450,12 +450,12 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
               <CardTitle className="text-sm font-semibold text-slate-700">Top Recruiters Performance</CardTitle>
               <CardDescription>Pipeline vs Closed Value</CardDescription>
             </CardHeader>
-            <CardContent className="h-[300px]">
+            <CardContent className="h-[380px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.analytics.recruiters} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={data.analytics.recruiters} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                   <XAxis type="number" tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12, fontWeight: 500, fill: '#334155' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11, fontWeight: 500, fill: '#334155' }} axisLine={false} tickLine={false} tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value} />
                   <Tooltip
                     formatter={(value: any) => formatCurrency(Number(value))}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
@@ -475,12 +475,12 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
               <CardTitle className="text-sm font-semibold text-slate-700">Client Revenue</CardTitle>
               <CardDescription>Top 10 clients by closed value</CardDescription>
             </CardHeader>
-            <CardContent className="h-[300px]">
+            <CardContent className="h-[380px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dynamicAnalytics.clients} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={dynamicAnalytics.clients} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                   <XAxis type="number" tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12, fontWeight: 500, fill: '#334155' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11, fontWeight: 500, fill: '#334155' }} axisLine={false} tickLine={false} tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value} />
                   <Tooltip
                     formatter={(value: any) => formatCurrency(Number(value))}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
@@ -500,7 +500,7 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
               <CardTitle className="text-sm font-semibold text-slate-700">Hiring Pipeline Funnel</CardTitle>
               <CardDescription>Current volume by stage</CardDescription>
             </CardHeader>
-            <CardContent className="h-[300px]">
+            <CardContent className="h-[380px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dynamicAnalytics.funnel} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />

@@ -10,6 +10,7 @@ import { Logo } from "@/components/ui/Logo";
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Sheet Metrics", href: "/sheet-metrics", icon: FileSpreadsheet },
+  { name: "Employees", href: "/employees", icon: Users },
   { name: "Clients", href: "/clients", icon: Users },
   { name: "Positions", href: "/positions", icon: Briefcase },
   { name: "Audit Logs", href: "/audit-logs", icon: ShieldAlert },

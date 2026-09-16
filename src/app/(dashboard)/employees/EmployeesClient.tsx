@@ -341,7 +341,12 @@ export default function EmployeesClient({
         attLookup.set(d, a);
       });
 
-      let lopDays = 0;
+      let totalPresentDays = 0;
+      let totalWeekOffDays = 0;
+      let totalHolidays = 0;
+      // We don't have explicit leave approved data yet, assuming 0
+      let totalApprovedLeaves = 0; 
+
       for (let day = 1; day <= daysInMonth; day++) {
         const d = new Date(year, month - 1, day);
         const isHoliday = holidayLookup.has(day);
@@ -351,20 +356,42 @@ export default function EmployeesClient({
         
         const record = attLookup.get(day);
 
-        if (!record) {
-          if (!isHoliday && !isWeekend && !isFuture) {
-            lopDays += 1;
+        if (!isFuture) {
+          if (record) {
+            const attStatus = Number(record.attendance_status);
+            // 1=Full Day, 2=Half Day, 3=Absent, 4=Week Off, 5=Holiday, 6=On Duty
+            if (attStatus === 1 || attStatus === 6) {
+              totalPresentDays += 1;
+            } else if (attStatus === 2) {
+              totalPresentDays += 0.5;
+            } else if (attStatus === 4) {
+              totalWeekOffDays += 1;
+            } else if (attStatus === 5) {
+              totalHolidays += 1;
+            } else if (attStatus === 3) {
+              // Absent, do nothing
+            }
+          } else {
+            // No record, check if weekend or holiday
+            if (isHoliday) {
+              totalHolidays += 1;
+            } else if (isWeekend) {
+              totalWeekOffDays += 1;
+            }
           }
-        } else {
-          const attStatus = Number(record.attendance_status);
-          if (attStatus === 3) lopDays += 1;
-          else if (attStatus === 2) lopDays += 0.5;
         }
       }
 
-      const perDay = fixedGross / daysInMonth;
-      const ded = lopDays * perDay;
-      const net = fixedGross - ded;
+      let totalPaidDays = 0;
+      if (totalPresentDays > 0) {
+        totalPaidDays = totalPresentDays + totalWeekOffDays + totalHolidays + totalApprovedLeaves;
+      } else {
+        totalPaidDays = 0;
+      }
+
+      const perDaySalary = fixedGross / daysInMonth;
+      const net = perDaySalary * totalPaidDays;
+      const ded = fixedGross - net;
 
       totalEstGross += fixedGross;
       totalEstDed += ded;

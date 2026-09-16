@@ -1,5 +1,9 @@
 import { google } from 'googleapis';
 
+const cache: Record<string, { data: any, timestamp: number }> = {};
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+
 const parseValue = (val: string | undefined | null) => {
   if (!val) return 0;
   const strVal = val.toString().toUpperCase();
@@ -574,6 +578,11 @@ function parseDoscMetrics(data: any[]) {
 }
 
 export async function getSheetMetrics(vendor: 'workforce' | 'descience' | 'dosc' = 'workforce') {
+  const now = Date.now();
+  if (cache[vendor] && now - cache[vendor].timestamp < CACHE_TTL) {
+    return cache[vendor].data;
+  }
+
   const auth = new google.auth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -622,11 +631,15 @@ export async function getSheetMetrics(vendor: 'workforce' | 'descience' | 'dosc'
     return obj;
   });
 
+  let result;
   if (vendor === 'descience') {
-    return parseDescienceMetrics(data);
+    result = parseDescienceMetrics(data);
   } else if (vendor === 'dosc') {
-    return parseDoscMetrics(data);
+    result = parseDoscMetrics(data);
+  } else {
+    result = parseWorkforceMetrics(data);
   }
 
-  return parseWorkforceMetrics(data);
+  cache[vendor] = { data: result, timestamp: now };
+  return result;
 }

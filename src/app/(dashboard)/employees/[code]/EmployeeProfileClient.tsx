@@ -438,7 +438,7 @@ export default function EmployeeProfileClient({
               </h3>
               
               <div className="w-full sm:w-48">
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <Select value={selectedMonth} onValueChange={(val) => val && setSelectedMonth(val)}>
                   <SelectTrigger className="bg-slate-50 border-slate-200 text-sm font-semibold text-slate-700">
                     <SelectValue>
                       {new Date(`${selectedMonth}-01`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}

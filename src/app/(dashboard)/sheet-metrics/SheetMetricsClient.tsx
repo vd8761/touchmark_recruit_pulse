@@ -20,7 +20,7 @@ import {
 type MonthData = {
   id: string;
   monthLabel: string;
-  joined: { count: number; value: number };
+  joined: { count: number; value: number; expectedRevenue: number };
   profitInvoiced: { count: number; value: number };
   lossDropped: { count: number; value: number };
   atRiskSustenance: { count: number; value: number };
@@ -36,7 +36,18 @@ type MetricsData = {
     clients: { name: string; deals: number; value: number; paidValue: number }[];
     funnel: { name: string; count: number }[];
   };
-  allCandidates?: { date: string; candidate: string; company: string; amount: number; balanceAmount: number; status: string; invoiceStatus: string; recruiter: string }[];
+  allCandidates?: { 
+    date: string; 
+    candidate: string; 
+    company: string; 
+    amount: number; 
+    balanceAmount: number; 
+    status: string; 
+    invoiceStatus: string; 
+    recruiter: string;
+    invoiceNo?: string;
+    [key: string]: any;
+  }[];
   lastUpdated: string;
 };
 
@@ -83,7 +94,8 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
         monthLabel: 'All Months',
         joined: { 
           count: data.months.reduce((acc, m) => acc + m.joined.count, 0), 
-          value: data.months.reduce((acc, m) => acc + m.joined.value, 0) 
+          value: data.months.reduce((acc, m) => acc + m.joined.value, 0),
+          expectedRevenue: data.months.reduce((acc, m) => acc + m.joined.expectedRevenue, 0)
         },
         profitInvoiced: { 
           count: data.months.reduce((acc, m) => acc + m.profitInvoiced.count, 0), 
@@ -168,7 +180,7 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
     const outstandingInvoices = filteredCandidates
       .filter(c => {
         const invStatus = c.invoiceStatus.toLowerCase();
-        const isOutstanding = invStatus.includes('pending') || invStatus.includes('generated') || invStatus.includes('send') || invStatus.includes('overdue') || invStatus.includes('not yet') || invStatus.includes('partially received');
+        const isOutstanding = invStatus.includes('pending') || invStatus.includes('generated') || invStatus.includes('send') || invStatus.includes('overdue') || invStatus.includes('not yet') || invStatus.includes('partially received') || invStatus.includes('partially paid');
         // Only show if it's considered a closed deal and has an outstanding balance
         return isOutstanding && (c.status === 'Joined' || c.status === 'Invoiced' || c.amount > 0) && c.balanceAmount > 0;
       })
@@ -353,22 +365,22 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
               <CardDescription>Visualizing the outcome of all {selectedMonth.joined.count} deals that joined this month.</CardDescription>
             </CardHeader>
             <CardContent>
-              {selectedMonth.joined.value > 0 ? (
+              {selectedMonth.joined.expectedRevenue > 0 ? (
                 <>
                   <div className="w-full h-3 flex rounded-full overflow-hidden mt-2 bg-slate-100">
                     <div
                       className="bg-emerald-500 h-full transition-all duration-500"
-                      style={{ width: `${(selectedMonth.profitInvoiced.value / selectedMonth.joined.value) * 100}%` }}
+                      style={{ width: `${(selectedMonth.profitInvoiced.value / selectedMonth.joined.expectedRevenue) * 100}%` }}
                       title={`Revenue: ${formatCurrency(selectedMonth.profitInvoiced.value)}`}
                     ></div>
                     <div
                       className="bg-amber-400 h-full transition-all duration-500"
-                      style={{ width: `${(selectedMonth.atRiskSustenance.value / selectedMonth.joined.value) * 100}%` }}
+                      style={{ width: `${(selectedMonth.atRiskSustenance.value / selectedMonth.joined.expectedRevenue) * 100}%` }}
                       title={`At Risk: ${formatCurrency(selectedMonth.atRiskSustenance.value)}`}
                     ></div>
                     <div
                       className="bg-rose-500 h-full transition-all duration-500"
-                      style={{ width: `${(selectedMonth.lossDropped.value / selectedMonth.joined.value) * 100}%` }}
+                      style={{ width: `${(selectedMonth.lossDropped.value / selectedMonth.joined.expectedRevenue) * 100}%` }}
                       title={`Lost: ${formatCurrency(selectedMonth.lossDropped.value)}`}
                     ></div>
                   </div>
@@ -380,7 +392,7 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                         Realized (Revenue)
                       </div>
                       <div className="text-lg font-bold text-slate-900">{formatCurrency(selectedMonth.profitInvoiced.value)}</div>
-                      <div className="text-xs font-semibold text-emerald-600">{((selectedMonth.profitInvoiced.value / selectedMonth.joined.value) * 100).toFixed(1)}% of total</div>
+                      <div className="text-xs font-semibold text-emerald-600">{((selectedMonth.profitInvoiced.value / selectedMonth.joined.expectedRevenue) * 100).toFixed(1)}% of total</div>
                     </div>
 
                     <div className="flex flex-col gap-1">
@@ -389,7 +401,7 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                         At Risk
                       </div>
                       <div className="text-lg font-bold text-slate-900">{formatCurrency(selectedMonth.atRiskSustenance.value)}</div>
-                      <div className="text-xs font-semibold text-amber-600">{((selectedMonth.atRiskSustenance.value / selectedMonth.joined.value) * 100).toFixed(1)}% of total</div>
+                      <div className="text-xs font-semibold text-amber-600">{((selectedMonth.atRiskSustenance.value / selectedMonth.joined.expectedRevenue) * 100).toFixed(1)}% of total</div>
                     </div>
 
                     <div className="flex flex-col gap-1">
@@ -398,7 +410,7 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                         Clawback / Loss
                       </div>
                       <div className="text-lg font-bold text-slate-900">{formatCurrency(selectedMonth.lossDropped.value)}</div>
-                      <div className="text-xs font-semibold text-rose-600">{((selectedMonth.lossDropped.value / selectedMonth.joined.value) * 100).toFixed(1)}% of total</div>
+                      <div className="text-xs font-semibold text-rose-600">{((selectedMonth.lossDropped.value / selectedMonth.joined.expectedRevenue) * 100).toFixed(1)}% of total</div>
                     </div>
 
                     <div className="flex flex-col gap-1">
@@ -407,16 +419,16 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                         Active / Uninvoiced
                       </div>
                       <div className="text-lg font-bold text-slate-900">
-                        {formatCurrency(Math.max(0, selectedMonth.joined.value - (selectedMonth.profitInvoiced.value + selectedMonth.atRiskSustenance.value + selectedMonth.lossDropped.value)))}
+                        {formatCurrency(Math.max(0, selectedMonth.joined.expectedRevenue - (selectedMonth.profitInvoiced.value + selectedMonth.atRiskSustenance.value + selectedMonth.lossDropped.value)))}
                       </div>
                       <div className="text-xs font-semibold text-slate-500">
-                        {((Math.max(0, selectedMonth.joined.value - (selectedMonth.profitInvoiced.value + selectedMonth.atRiskSustenance.value + selectedMonth.lossDropped.value)) / selectedMonth.joined.value) * 100).toFixed(1)}% of total
+                        {((Math.max(0, selectedMonth.joined.expectedRevenue - (selectedMonth.profitInvoiced.value + selectedMonth.atRiskSustenance.value + selectedMonth.lossDropped.value)) / selectedMonth.joined.expectedRevenue) * 100).toFixed(1)}% of total
                       </div>
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="w-full h-12 flex items-center justify-center text-xs text-slate-400 font-medium bg-slate-50 rounded-lg">No Value Generated</div>
+                <div className="w-full h-12 flex items-center justify-center text-xs text-slate-400 font-medium bg-slate-50 rounded-lg">No Revenue Expected</div>
               )}
             </CardContent>
           </Card>
@@ -574,6 +586,114 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
                 </tbody>
               </table>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Detailed Financial Deals Table */}
+      <div className="mb-8">
+        <Card className="w-full shadow-sm">
+          <CardHeader className="border-b border-slate-100 pb-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-slate-800 flex items-center gap-2 text-base font-bold">
+                  <FileText className="h-5 w-5 text-indigo-500" />
+                  Detailed Invoices / Deals Breakdown
+                </CardTitle>
+                <CardDescription className="text-slate-500 mt-1">Detailed financial information including taxes and TDS for the selected period.</CardDescription>
+              </div>
+              <div className="bg-white px-3 py-1 rounded-full border border-slate-200 text-sm font-bold text-slate-700 shadow-sm whitespace-nowrap self-start md:self-auto">
+                {selectedMonthId === 'all' 
+                  ? (data.allCandidates?.length || 0) 
+                  : (data.allCandidates?.filter(c => c.date && new Date(c.date).getFullYear() + '-' + String(new Date(c.date).getMonth() + 1).padStart(2, '0') === selectedMonthId).length || 0)} Deals
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {(() => {
+              const detailedCandidates = data.allCandidates
+                ? data.allCandidates.filter(c => selectedMonthId === 'all' || (c.date && new Date(c.date).getFullYear() + '-' + String(new Date(c.date).getMonth() + 1).padStart(2, '0') === selectedMonthId))
+                : [];
+              
+              const totals = detailedCandidates.reduce((acc, inv) => {
+                acc.taxable += parseFloat((inv['Taxable Value'] || '0').toString().replace(/[^0-9.]/g, '')) || 0;
+                acc.cgst += parseFloat(((inv['CGST '] || inv['CGST']) || '0').toString().replace(/[^0-9.]/g, '')) || 0;
+                acc.sgst += parseFloat((inv['SGST'] || '0').toString().replace(/[^0-9.]/g, '')) || 0;
+                acc.igst += parseFloat((inv['IGST'] || '0').toString().replace(/[^0-9.]/g, '')) || 0;
+                acc.totalAmount += parseFloat((inv['Total Invoice Amount'] || '0').toString().replace(/[^0-9.]/g, '')) || 0;
+                acc.tdsAmount += parseFloat((inv['Total TDS Amount'] || '0').toString().replace(/[^0-9.]/g, '')) || 0;
+                return acc;
+              }, { taxable: 0, cgst: 0, sgst: 0, igst: 0, totalAmount: 0, tdsAmount: 0 });
+
+              return (
+                <div className="overflow-x-auto max-h-[500px] overflow-y-auto custom-scrollbar">
+                  <table className="w-full text-sm text-left whitespace-nowrap">
+                    <thead className="text-[11px] text-slate-500 uppercase bg-slate-50 sticky top-0 z-10 shadow-sm tracking-wider">
+                      <tr>
+                        <th className="px-4 py-4 font-semibold">Candidate</th>
+                        <th className="px-4 py-4 font-semibold">Company</th>
+                        <th className="px-4 py-4 font-semibold">Status</th>
+                        <th className="px-4 py-4 font-semibold">Invoice No</th>
+                        <th className="px-4 py-4 font-semibold text-right">Taxable Value</th>
+                        <th className="px-4 py-4 font-semibold text-right">CGST</th>
+                        <th className="px-4 py-4 font-semibold text-right">SGST</th>
+                        <th className="px-4 py-4 font-semibold text-right">IGST</th>
+                        <th className="px-4 py-4 font-semibold text-right">Total Amount</th>
+                        <th className="px-4 py-4 font-semibold text-center">TDS</th>
+                        <th className="px-4 py-4 font-semibold text-right">TDS Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {detailedCandidates.length > 0 ? (
+                        detailedCandidates.map((inv, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-4 font-semibold text-slate-900">{inv.candidate || inv['Name of the Candidate'] || '-'}</td>
+                            <td className="px-4 py-4 font-medium text-slate-700">{inv.company || '-'}</td>
+                            <td className="px-4 py-4">
+                              <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${inv.status === 'Joined' || inv.status === 'Invoiced' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-700 border-slate-200'} border`}>
+                                {inv.status || 'Pending'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 text-slate-500">{inv.invoiceNo || inv['Invoice No'] || '-'}</td>
+                            <td className="px-4 py-4 font-medium text-slate-700 text-right">{inv['Taxable Value'] ? formatCurrency(parseFloat(inv['Taxable Value'].toString().replace(/[^0-9.]/g, ''))) : '-'}</td>
+                            <td className="px-4 py-4 text-slate-500 text-right">{inv['CGST '] || inv['CGST'] ? formatCurrency(parseFloat((inv['CGST '] || inv['CGST']).toString().replace(/[^0-9.]/g, ''))) : '-'}</td>
+                            <td className="px-4 py-4 text-slate-500 text-right">{inv['SGST'] ? formatCurrency(parseFloat(inv['SGST'].toString().replace(/[^0-9.]/g, ''))) : '-'}</td>
+                            <td className="px-4 py-4 text-slate-500 text-right">{inv['IGST'] ? formatCurrency(parseFloat(inv['IGST'].toString().replace(/[^0-9.]/g, ''))) : '-'}</td>
+                            <td className="px-4 py-4 font-bold text-slate-900 text-right">{inv['Total Invoice Amount'] ? formatCurrency(parseFloat(inv['Total Invoice Amount'].toString().replace(/[^0-9.]/g, ''))) : '-'}</td>
+                            <td className="px-4 py-4 text-center">
+                              {inv['TDS (Applicable)'] ? (
+                                <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded font-medium text-xs border border-slate-200">{inv['TDS (Applicable)']}</span>
+                              ) : '-'}
+                            </td>
+                            <td className="px-4 py-4 font-medium text-rose-600 text-right">{inv['Total TDS Amount'] ? formatCurrency(parseFloat(inv['Total TDS Amount'].toString().replace(/[^0-9.]/g, ''))) : '-'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={11} className="px-6 py-12 text-center text-slate-500 bg-slate-50/50">
+                            No detailed financial records found for this period.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                    {detailedCandidates.length > 0 && (
+                      <tfoot className="bg-slate-50 font-bold sticky bottom-0 z-10 shadow-[0_-1px_3px_rgba(0,0,0,0.05)] border-t border-slate-200">
+                        <tr>
+                          <td colSpan={4} className="px-4 py-4 text-right text-slate-900">Period Total:</td>
+                          <td className="px-4 py-4 text-right text-slate-900">{formatCurrency(totals.taxable)}</td>
+                          <td className="px-4 py-4 text-right text-slate-600">{formatCurrency(totals.cgst)}</td>
+                          <td className="px-4 py-4 text-right text-slate-600">{formatCurrency(totals.sgst)}</td>
+                          <td className="px-4 py-4 text-right text-slate-600">{formatCurrency(totals.igst)}</td>
+                          <td className="px-4 py-4 text-right text-slate-900">{formatCurrency(totals.totalAmount)}</td>
+                          <td className="px-4 py-4"></td>
+                          <td className="px-4 py-4 text-right text-rose-600">{formatCurrency(totals.tdsAmount)}</td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>

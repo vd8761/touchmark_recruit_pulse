@@ -1,0 +1,51 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Dashboard Data Entry Guide</title>
+<style>
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #333; line-height: 1.5; }
+h1 { color: #1E3A8A; font-size: 18pt; margin-bottom: 5px; }
+h2 { color: #2563EB; font-size: 14pt; border-bottom: 1px solid #E5E7EB; padding-bottom: 4px; margin-top: 20px; }
+h3 { font-size: 12pt; margin-bottom: 5px; }
+p { margin-top: 10px; margin-bottom: 10px; }
+ul { margin-top: 5px; }
+li { margin-bottom: 8px; }
+.highlight { background-color: #FEF08A; padding: 2px 4px; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>Dashboard Data Entry Guide</h1>
+<p>To feed information into the dashboard, your team simply needs to <strong>continue updating the Google Sheet</strong> just like you normally do. The application automatically connects to that spreadsheet in real-time, reads the rows, and refreshes the charts and metrics!</p>
+<p>For the dashboard to calculate the data properly without any missing numbers or dropped candidates, here are the <strong>necessary columns</strong> that must be filled out:</p>
+
+<h2>1. The "Must-Haves" for Monthly Tracking</h2>
+<ul>
+<li><strong>Actual D.O.J (Date of Joining)</strong>: This is <span style="color:#DC2626; font-weight:bold;">critical</span>. The dashboard uses this date to group deals by month (e.g., September 2026). If a deal is missing a date here (and has no invoice dates), it won't appear in your monthly performance charts.</li>
+<li><strong>Candidate Status</strong>: Tells the system where the candidate is.
+    <ul>
+    <li><em>Pipeline</em>: Sourced, Screened, Interviewing, Offer Accepted, etc.</li>
+    <li><em>Closed</em>: Joined or Invoiced</li>
+    <li><em>Lost</em>: Dropped, Resigned, Rejected, Absconded</li>
+    </ul>
+</li>
+<li><strong>Company & Recruiter name</strong>: Essential for the Top Recruiters and Top Clients bar charts.</li>
+</ul>
+
+<h2>2. The "Must-Haves" for Revenue & Finance</h2>
+<p>To calculate how much money a deal is worth, you must provide the <strong>Closed budget (LPA)</strong> AND at least one of the following:</p>
+<ul>
+<li><strong>Taxable Value</strong>: (Best option) The exact invoice revenue without GST.</li>
+<li><strong>Total Invoice Amount</strong>: Used as a fallback if Taxable Value is missing.</li>
+<li><strong>Commission (%)</strong>: If the above two are missing, the system will multiply the Closed budget by this percentage to calculate the revenue automatically.</li>
+</ul>
+
+<h2>3. The "Must-Haves" for Invoice Tracking</h2>
+<ul>
+<li><strong>Invoice Status</strong>: Must be updated to exact keywords like <strong>Paid</strong>, <strong>Partially Paid</strong>, <strong>Invoice Generated</strong>, or <strong>Pending</strong>. The dashboard looks at these words to decide if money is "Collected", "Pending", or "At Risk".</li>
+<li><strong>Invoice No</strong> (Optional but recommended): Good for referencing in the pending payments table.</li>
+</ul>
+
+<h2>Summary</h2>
+<p>As long as your recruiters accurately fill in the <strong>Candidate Status</strong>, the <strong>Date (D.O.J)</strong>, the <strong>Financial Amounts</strong> (Budget + Commission or Taxable Value), and keep the <strong>Invoice Status</strong> up to date, the dashboard will automatically handle all the math and visualization!</p>
+</body>
+</html>

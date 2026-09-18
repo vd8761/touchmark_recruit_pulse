@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { UserList } from "./_components/UserList";
 
 export const metadata = {
-  title: "Users & Roles | RecruitPulse",
+  title: "Users & Roles | FoundersEdge",
 };
 
 export default async function UsersPage() {

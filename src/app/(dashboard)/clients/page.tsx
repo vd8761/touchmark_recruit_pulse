@@ -1,7 +1,7 @@
 import { ClientList } from "./_components/ClientList";
 
 export const metadata = {
-  title: "Clients | RecruitPulse",
+  title: "Clients | FoundersEdge",
 };
 
 export default function ClientsPage() {

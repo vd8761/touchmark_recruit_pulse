@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
     // Generate new secret
     const secret = generateSecret();
-    const service = "Touchmark RecruitPulse";
+    const service = "FoundersEdge";
     const otpauth = generateURI({ issuer: service, label: user.email, secret });
     const qrCodeUrl = await qrcode.toDataURL(otpauth);
 

@@ -247,7 +247,7 @@ export default function AiChatModal({ metricsContext }: { metricsContext?: strin
         const readableMetrics = metricsContext ? buildContext(metricsContext) : null;
 
         const systemContent = readableMetrics
-            ? `You are RecruitPulse AI — an intelligent assistant for the Touchmark Recruit Pulse platform, an Indian recruitment & staffing company.
+            ? `You are FoundersEdge AI — an intelligent assistant for the FoundersEdge platform, an Indian recruitment & staffing company.
 
 You have access to TWO separate data sources. Understand the difference clearly:
 
@@ -311,7 +311,7 @@ RESPONSE FORMAT — ALWAYS FOLLOW
 
 DATA:
 ${readableMetrics}`
-            : `You are RecruitPulse AI — an intelligent assistant for the Touchmark Recruit Pulse platform, an Indian staffing company. All money is ₹ (INR). Be professional, structured, and use bullet points with icons. Refuse general knowledge questions politely.`;
+            : `You are FoundersEdge AI — an intelligent assistant for the FoundersEdge platform, an Indian staffing company. All money is ₹ (INR). Be professional, structured, and use bullet points with icons. Refuse general knowledge questions politely.`;
 
         try {
             const response = await fetch('/api/chat', {
@@ -521,7 +521,7 @@ ${readableMetrics}`
                     <div className="flex items-center gap-3">
                          <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white text-sm font-bold shadow-inner ring-2 ring-white/30">AI</div>
                          <div>
-                             <p className="text-white font-bold text-sm leading-tight drop-shadow-sm">RecruitPulse AI</p>
+                             <p className="text-white font-bold text-sm leading-tight drop-shadow-sm">FoundersEdge AI</p>
                              <p className="text-orange-100 text-[11px] font-medium tracking-wide leading-none mt-0.5">Intelligent Analytics Assistant</p>
                          </div>
                     </div>
@@ -651,7 +651,7 @@ ${readableMetrics}`
                                         e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
                                     }}
                                     onKeyDown={handleKeyDown}
-                                    placeholder="Message RecruitPulse AI..."
+                                    placeholder="Message FoundersEdge AI..."
                                     className="w-full pl-5 pr-14 py-4 rounded-xl border border-orange-200 bg-orange-50/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#f0a500]/50 focus:border-[#f0a500] resize-none overflow-y-auto text-[15px] shadow-sm transition-all"
                                     rows={1}
                                     style={{ minHeight: '56px' }}
@@ -669,7 +669,7 @@ ${readableMetrics}`
                                 </button>
                             </div>
                             <p className="text-center text-[11px] text-slate-400 mt-3 font-medium tracking-wide">
-                                RecruitPulse AI can make mistakes. Consider verifying important metrics.
+                                FoundersEdge AI can make mistakes. Consider verifying important metrics.
                             </p>
                         </div>
                     </div>
@@ -691,7 +691,7 @@ ${readableMetrics}`
                         setIsOpen(!isOpen);
                     }}
                     className={`relative flex items-center gap-2 px-4 h-12 rounded-full bg-gradient-to-r from-[#f0a500] to-[#e07b00] text-white shadow-lg hover:shadow-xl font-semibold text-sm transition-all duration-300 hover:scale-105 ${isOpen ? 'scale-95' : ''}`}
-                    aria-label="Open RecruitPulse AI chat"
+                    aria-label="Open FoundersEdge AI chat"
                 >
                     {isOpen ? (
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 flex-shrink-0">

@@ -22,7 +22,7 @@ export function Logo({ className = "", iconOnly = false }: LogoProps) {
             Touchmark
           </span>
           <span className="text-2xl font-extrabold tracking-tight text-slate-900 leading-none">
-            Recruit<span className="text-amber-500">Pulse</span>
+            Founders<span className="text-amber-500">Edge</span>
           </span>
         </div>
       )}

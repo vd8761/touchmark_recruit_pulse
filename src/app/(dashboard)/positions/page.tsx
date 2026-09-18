@@ -1,7 +1,7 @@
 import { PositionList } from "./_components/PositionList";
 
 export const metadata = {
-  title: "Positions | Touchmark Recruit Pulse",
+  title: "Positions | FoundersEdge",
   description: "Manage open positions and recruitment requirements",
 };
 

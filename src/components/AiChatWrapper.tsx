@@ -183,7 +183,7 @@ export default async function AiChatWrapper({ isFullPage = false }: { isFullPage
       overallPipeline: {
         pendingPipelineINR: pendingRevenue,
         realizedRevenueINR: realizedRevenue,
-        note: 'These totals represent the entire RecruitPulse App Database (matches Dashboard UI).'
+        note: 'These totals represent the entire FoundersEdge App Database (matches Dashboard UI).'
       },
       clients: {
         total: clients.status === 'fulfilled' ? clients.value.length : 0,

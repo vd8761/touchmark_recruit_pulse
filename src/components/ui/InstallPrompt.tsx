@@ -59,7 +59,7 @@ export function InstallPrompt() {
           <Download className="w-5 h-5 text-amber-500" />
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="font-semibold text-[14px] truncate">Install RecruitPulse</span>
+          <span className="font-semibold text-[14px] truncate">Install FoundersEdge</span>
           <span className="text-[12px] text-slate-400 truncate">Add to home screen for the best experience</span>
         </div>
       </div>

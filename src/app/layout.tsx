@@ -19,13 +19,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "RecruitPulse",
+  title: "FoundersEdge",
   description: "Secure Client Resource Tracking System",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "RecruitPulse",
+    title: "FoundersEdge",
   },
 };
 

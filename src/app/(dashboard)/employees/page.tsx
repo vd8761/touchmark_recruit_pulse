@@ -5,7 +5,7 @@ import { getHolidays } from "@/app/actions/get-holidays";
 import EmployeesClient from "./EmployeesClient";
 
 export const metadata = {
-  title: "Payroll Employees | Touchmark Recruit Pulse",
+  title: "Payroll Employees | FoundersEdge",
   description: "View and manage employees synchronized from the payroll system.",
 };
 

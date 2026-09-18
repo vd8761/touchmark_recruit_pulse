@@ -1,7 +1,7 @@
 import { ReportsCenter } from "./_components/ReportsCenter";
 
 export const metadata = {
-  title: "Reports Center | RecruitPulse",
+  title: "Reports Center | FoundersEdge",
 };
 
 export default function ReportsPage() {

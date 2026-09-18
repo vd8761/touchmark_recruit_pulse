@@ -334,7 +334,8 @@ function parseDescienceMetrics(data: any[]) {
 
   data.forEach((row) => {
     const invoiceDateStr = row['Invoice Date'];
-    const amount = parseValue(row['Invoice Amount (INR)']);
+    // Look for various variations of the invoice amount column
+    const amount = parseValue(row['Total Invoice Amount'] || row[' Total Invoice Amount'] || row['Invoice Amount (INR)']);
     let status = row['Invoice Status']?.trim() || '';
 
     // Normalize display statuses
@@ -347,11 +348,21 @@ function parseDescienceMetrics(data: any[]) {
     const monthInfo = getMonthKey(invoiceDateStr);
 
     if (invoiceDateStr && amount > 0) {
+      let invPendingAmount = amount;
+      const lowerStatusForInv = status.toLowerCase();
+      if (lowerStatusForInv.includes('partially paid')) {
+        const received = parseValue(row['Received Amount']);
+        invPendingAmount = Math.max(0, amount - received);
+      } else if (lowerStatusForInv === 'paid' || lowerStatusForInv === 'received') {
+        invPendingAmount = 0;
+      }
+
       recentInvoices.push({
         date: invoiceDateStr,
         monthKey: monthInfo ? monthInfo.key : '',
         company,
         amount,
+        pendingAmount: invPendingAmount,
         status,
         invoiceNo,
         timestamp: new Date(invoiceDateStr).getTime()
@@ -373,15 +384,36 @@ function parseDescienceMetrics(data: any[]) {
       monthBucket.salesBilled.value += amount;
 
       const lowerStatus = status.toLowerCase();
-      const isCollected = lowerStatus.includes('paid') || lowerStatus.includes('received');
-      const isPending = lowerStatus.includes('send') || lowerStatus.includes('pending') || lowerStatus.includes('overdue');
+      
+      const isCollected = lowerStatus === 'paid' || lowerStatus === 'received';
+      const isPending = lowerStatus.includes('send') || 
+                        lowerStatus.includes('pending') || 
+                        lowerStatus.includes('generated') || 
+                        lowerStatus.includes('partially paid') || 
+                        lowerStatus.includes('overdue');
+
+      let collectedAmount = 0;
+      let pendingAmount = 0;
 
       if (isCollected) {
-        monthBucket.collected.count++;
-        monthBucket.collected.value += amount;
+        collectedAmount = amount;
       } else if (isPending) {
+        if (lowerStatus.includes('partially paid')) {
+          collectedAmount = parseValue(row['Received Amount']);
+          pendingAmount = Math.max(0, amount - collectedAmount);
+        } else {
+          pendingAmount = amount;
+        }
+      }
+
+      if (collectedAmount > 0) {
+        monthBucket.collected.count++;
+        monthBucket.collected.value += collectedAmount;
+      }
+      
+      if (pendingAmount > 0) {
         monthBucket.pending.count++;
-        monthBucket.pending.value += amount;
+        monthBucket.pending.value += pendingAmount;
 
         if (!clientAgingStats[company]) {
           clientAgingStats[company] = { name: company, '0-30 Days': 0, '31-60 Days': 0, '60-90 Days': 0, '90+ Days': 0, totalPending: 0, invoices: { '0-30 Days': [], '31-60 Days': [], '60-90 Days': [], '90+ Days': [] } };
@@ -393,27 +425,27 @@ function parseDescienceMetrics(data: any[]) {
           if (!isNaN(invDate)) {
             const ageDays = (now - invDate) / (1000 * 60 * 60 * 24);
             if (ageDays <= 30) {
-              agingStats['0-30 Days'].total += amount;
+              agingStats['0-30 Days'].total += pendingAmount;
               if (invoiceNo) agingStats['0-30 Days'].invoices.push(invoiceNo);
-              clientAgingStats[company]['0-30 Days'] += amount;
+              clientAgingStats[company]['0-30 Days'] += pendingAmount;
               if (invoiceNo) clientAgingStats[company].invoices['0-30 Days'].push(invoiceNo);
             } else if (ageDays <= 60) {
-              agingStats['31-60 Days'].total += amount;
+              agingStats['31-60 Days'].total += pendingAmount;
               if (invoiceNo) agingStats['31-60 Days'].invoices.push(invoiceNo);
-              clientAgingStats[company]['31-60 Days'] += amount;
+              clientAgingStats[company]['31-60 Days'] += pendingAmount;
               if (invoiceNo) clientAgingStats[company].invoices['31-60 Days'].push(invoiceNo);
             } else if (ageDays <= 90) {
-              agingStats['60-90 Days'].total += amount;
+              agingStats['60-90 Days'].total += pendingAmount;
               if (invoiceNo) agingStats['60-90 Days'].invoices.push(invoiceNo);
-              clientAgingStats[company]['60-90 Days'] += amount;
+              clientAgingStats[company]['60-90 Days'] += pendingAmount;
               if (invoiceNo) clientAgingStats[company].invoices['60-90 Days'].push(invoiceNo);
             } else {
-              agingStats['90+ Days'].total += amount;
+              agingStats['90+ Days'].total += pendingAmount;
               if (invoiceNo) agingStats['90+ Days'].invoices.push(invoiceNo);
-              clientAgingStats[company]['90+ Days'] += amount;
+              clientAgingStats[company]['90+ Days'] += pendingAmount;
               if (invoiceNo) clientAgingStats[company].invoices['90+ Days'].push(invoiceNo);
             }
-            clientAgingStats[company].totalPending += amount;
+            clientAgingStats[company].totalPending += pendingAmount;
           }
         }
       }
@@ -423,10 +455,11 @@ function parseDescienceMetrics(data: any[]) {
           clientStats[company] = { name: company, billed: 0, collected: 0, pending: 0 };
         }
         clientStats[company].billed += amount;
-        if (isCollected) {
-          clientStats[company].collected += amount;
-        } else if (isPending) {
-          clientStats[company].pending += amount;
+        if (collectedAmount > 0) {
+          clientStats[company].collected += collectedAmount;
+        }
+        if (pendingAmount > 0) {
+          clientStats[company].pending += pendingAmount;
         }
       }
     }

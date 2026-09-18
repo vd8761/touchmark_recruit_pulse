@@ -119,13 +119,20 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
       }
       clientStats[company].billed += inv.amount;
 
-      const isCollected = inv.status.toLowerCase() === 'received' || inv.status.toLowerCase() === 'paid';
-      const isPending = inv.status.toLowerCase() === 'pending' || inv.status.toLowerCase() === 'send' || inv.status.toLowerCase() === 'overdue';
+      const lowerStatus = inv.status.toLowerCase();
+      const isCollected = lowerStatus === 'received' || lowerStatus === 'paid';
+      const isPending = lowerStatus.includes('send') || 
+                        lowerStatus.includes('pending') || 
+                        lowerStatus.includes('generated') || 
+                        lowerStatus.includes('partially paid') || 
+                        lowerStatus.includes('overdue');
+                        
+      const amountToAge = (inv as any).pendingAmount !== undefined ? (inv as any).pendingAmount : inv.amount;
 
       if (isCollected) {
         clientStats[company].collected += inv.amount;
       } else if (isPending) {
-        clientStats[company].pending += inv.amount;
+        clientStats[company].pending += amountToAge;
 
         if (!clientAgingStats[company]) {
           clientAgingStats[company] = { name: company, '0-30 Days': 0, '31-60 Days': 0, '60-90 Days': 0, '90+ Days': 0, totalPending: 0, invoices: { '0-30 Days': [], '31-60 Days': [], '60-90 Days': [], '90+ Days': [] } };
@@ -139,9 +146,9 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
           else if (ageDays <= 60) bucket = '31-60 Days';
           else if (ageDays <= 90) bucket = '60-90 Days';
 
-          agingStats[bucket].total += inv.amount;
+          agingStats[bucket].total += amountToAge;
           if (inv.invoiceNo) agingStats[bucket].invoices.push(inv.invoiceNo);
-          clientAgingStats[company][bucket] += inv.amount;
+          clientAgingStats[company][bucket] += amountToAge;
           if (inv.invoiceNo) clientAgingStats[company].invoices[bucket].push(inv.invoiceNo);
         }
       }
@@ -163,8 +170,15 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
     ];
 
     const outstandingInvoices = filteredInvoices
-      .filter(inv => inv.status.toLowerCase() === 'pending' || inv.status.toLowerCase() === 'send' || inv.status.toLowerCase() === 'overdue')
-      .sort((a, b) => b.amount - a.amount); // sort by highest amount
+      .filter(inv => {
+        const lowerStatus = inv.status.toLowerCase();
+        return lowerStatus.includes('send') || 
+               lowerStatus.includes('pending') || 
+               lowerStatus.includes('generated') || 
+               lowerStatus.includes('partially paid') || 
+               lowerStatus.includes('overdue');
+      })
+      .sort((a, b) => ((b as any).pendingAmount !== undefined ? (b as any).pendingAmount : b.amount) - ((a as any).pendingAmount !== undefined ? (a as any).pendingAmount : a.amount)); // sort by highest pending amount
 
     return {
       clients: topClients,
@@ -609,7 +623,9 @@ export default function DescienceClient({ data, vendor }: { data: MetricsData, v
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900">{inv.invoiceNo || '-'}</td>
                         <td className="px-6 py-4 font-semibold text-slate-900">{inv.company}</td>
-                        <td className="px-6 py-4 font-bold text-slate-900 text-right">{formatCurrency(inv.amount)}</td>
+                        <td className="px-6 py-4 font-bold text-slate-900 text-right">
+                          {formatCurrency((inv as any).pendingAmount !== undefined ? (inv as any).pendingAmount : inv.amount)}
+                        </td>
                       </tr>
                     ))
                   ) : (

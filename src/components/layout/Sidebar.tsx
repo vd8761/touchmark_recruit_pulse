@@ -3,12 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Briefcase, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, UserCog, FileSpreadsheet } from "lucide-react";
+import { LayoutDashboard, Users, Briefcase, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, UserCog, FileSpreadsheet, CalendarClock } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Logo } from "@/components/ui/Logo";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Followup", href: "/followup", icon: CalendarClock },
   { name: "Sheet Metrics", href: "/sheet-metrics", icon: FileSpreadsheet },
   { name: "Employees", href: "/employees", icon: Users },
   { name: "Clients", href: "/clients", icon: Users },
@@ -28,7 +29,7 @@ export function Sidebar({ isMobile = false, onNavigate }: { isMobile?: boolean, 
   // Filter navigation based on role
   const filteredNavigation = navigation.filter((item) => {
     if (userRole === "Super Admin") return true;
-    
+
     if (item.name === "Users & Roles" || item.name === "Settings") {
       return false; // Strictly Super Admin only
     }
@@ -36,11 +37,11 @@ export function Sidebar({ isMobile = false, onNavigate }: { isMobile?: boolean, 
     if (item.name === "Audit Logs") {
       return userRole === "Admin";
     }
-    
+
     if (item.name === "Reports") {
-      return userRole === "Admin" || userRole === "Finance"; 
+      return userRole === "Admin" || userRole === "Finance";
     }
-    
+
     // Dashboard, Clients, Positions are available to everyone
     return true;
   });
@@ -51,9 +52,9 @@ export function Sidebar({ isMobile = false, onNavigate }: { isMobile?: boolean, 
 
   return (
     <div className={`flex h-full flex-col bg-white z-20 transition-all duration-300 ease-in-out border-r border-slate-200 shadow-sm relative group ${isMobile ? 'w-full' : widthClass}`}>
-      
+
       {!isMobile && (
-        <button 
+        <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="absolute -right-3.5 top-8 bg-white border border-slate-200 rounded-full p-1.5 text-slate-400 hover:text-amber-500 hover:border-amber-500 shadow-sm opacity-0 group-hover:opacity-100 transition-all z-50 flex items-center justify-center"
         >
@@ -72,7 +73,7 @@ export function Sidebar({ isMobile = false, onNavigate }: { isMobile?: boolean, 
           </div>
         )}
       </div>
-      
+
       <div className={`flex flex-1 flex-col pt-6 pb-4 px-3 ${collapsed ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden'}`}>
         <nav className="flex-1 space-y-1.5">
           {filteredNavigation.map((item) => {
@@ -84,20 +85,16 @@ export function Sidebar({ isMobile = false, onNavigate }: { isMobile?: boolean, 
                 key={item.name}
                 href={item.href}
                 onClick={onNavigate}
-                className={`group relative flex items-center rounded-lg py-2.5 text-[14px] font-semibold transition-all duration-300 ease-out whitespace-nowrap overflow-visible ${
-                  collapsed ? 'justify-center px-0 mx-1' : 'px-3.5'
-                } ${
-                  isActive 
-                    ? "bg-[#0B132B] text-white shadow-lg shadow-slate-900/20 scale-[1.02]" 
+                className={`group relative flex items-center rounded-lg py-2.5 text-[14px] font-semibold transition-all duration-300 ease-out whitespace-nowrap overflow-visible ${collapsed ? 'justify-center px-0 mx-1' : 'px-3.5'
+                  } ${isActive
+                    ? "bg-[#0B132B] text-white shadow-lg shadow-slate-900/20 scale-[1.02]"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:translate-x-1"
-                }`}
+                  }`}
               >
                 <Icon
-                  className={`h-[18px] w-[18px] flex-shrink-0 transition-colors duration-300 ${
-                    !collapsed && 'mr-3'
-                  } ${
-                    isActive ? "text-amber-500" : "text-slate-400 group-hover:text-amber-500"
-                  }`}
+                  className={`h-[18px] w-[18px] flex-shrink-0 transition-colors duration-300 ${!collapsed && 'mr-3'
+                    } ${isActive ? "text-amber-500" : "text-slate-400 group-hover:text-amber-500"
+                    }`}
                   aria-hidden="true"
                 />
                 {!collapsed && <span>{item.name}</span>}

@@ -318,14 +318,12 @@ ${readableMetrics}`
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: 'gpt-4o',
                     sessionId: currentSessionId,
                     messages: [
                         { role: 'system', content: systemContent },
                         ...newMessages.map(m => ({ role: m.role, content: m.content }))
                     ],
-                    max_tokens: 2000,
-                    temperature: 0.2,
+                    max_completion_tokens: 2000,
                 }),
             });
 

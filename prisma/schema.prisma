@@ -43,6 +43,7 @@ model User {
   audit_logs         AuditLog[]        @relation("AuditModifier")
   settings_updated   AppSetting[]      @relation("SettingUpdater")
   ai_chat_sessions   AiChatSession[]
+  followups          Followup[]
 }
 
 model Client {
@@ -175,3 +176,18 @@ model AiChatMessage {
   created_at DateTime      @default(now())
 }
 
+model Followup {
+  id                  String    @id @default(uuid())
+  title               String
+  followup_date       DateTime
+  status              String    @default("Pending") // Pending, Completed, Rescheduled, Cancelled
+  rescheduled_count   Int       @default(0)
+  last_rescheduled_at DateTime?
+
+  user_id             String?
+  user                User?     @relation(fields: [user_id], references: [id])
+
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+  deleted_at          DateTime?
+}

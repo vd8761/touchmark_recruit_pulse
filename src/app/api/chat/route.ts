@@ -45,19 +45,39 @@ GOLDEN RULES:
             });
         }
 
-        const groqRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        const chatModel = process.env.OPENAI_CHAT_MODEL;
+        const titleModel = process.env.OPENAI_TITLE_MODEL || chatModel;
+
+        if (!chatModel) {
+            return NextResponse.json(
+                { error: { message: 'OPENAI_CHAT_MODEL is not configured in environment variables.' } },
+                { status: 500 }
+            );
+        }
+
+        const maxCompletionTokens = body.max_completion_tokens || body.max_tokens;
+        const requestPayload: Record<string, any> = {
+            model: chatModel,
+            messages: apiMessages,
+        };
+
+        if (maxCompletionTokens) {
+            requestPayload.max_completion_tokens = maxCompletionTokens;
+        }
+
+        const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
             },
-            body: JSON.stringify({ ...body, messages: apiMessages, sessionId: undefined }), // Remove sessionId before sending to OpenAI
+            body: JSON.stringify(requestPayload),
         });
 
-        const data = await groqRes.json();
+        const data = await openAiRes.json();
 
-        if (!groqRes.ok) {
-            return NextResponse.json(data, { status: groqRes.status });
+        if (!openAiRes.ok) {
+            return NextResponse.json(data, { status: openAiRes.status });
         }
 
         const aiResponse = data.choices?.[0]?.message?.content;
@@ -89,13 +109,12 @@ GOLDEN RULES:
                             'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
                         },
                         body: JSON.stringify({
-                            model: 'gpt-4o-mini', // Fast, small model just for titling
+                            model: titleModel,
                             messages: [
                                 { role: 'system', content: 'You are a summarization bot. Generate a short, 3 to 5 word title for the user prompt. DO NOT include quotes or punctuation. Be direct and descriptive.' },
                                 { role: 'user', content: userPrompt }
                             ],
-                            max_tokens: 10,
-                            temperature: 0.5,
+                            max_completion_tokens: 50,
                         })
                     });
 

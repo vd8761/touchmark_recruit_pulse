@@ -171,6 +171,7 @@ function Calendar({
       className={cn("p-3", className)}
       style={{
         width: 248.8 * (columnsDisplayed ?? 1) + "px",
+        ...props.style,
       }}
       classNames={{
         months: _monthsClassName,

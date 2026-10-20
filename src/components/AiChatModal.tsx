@@ -12,8 +12,25 @@ type ChatSession = {
     updated_at: string;
 };
 
-export default function AiChatModal({ metricsContext }: { metricsContext?: string }) {
+export default function AiChatModal({ metricsContext: initialMetricsContext }: { metricsContext?: string }) {
     const [isOpen, setIsOpen] = useState(false);
+    const [metricsContext, setMetricsContext] = useState<string | null>(initialMetricsContext || null);
+    const [isLoadingContext, setIsLoadingContext] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && !metricsContext && !isLoadingContext) {
+            setIsLoadingContext(true);
+            fetch('/api/chat/context')
+                .then(res => res.json())
+                .then(data => {
+                    if (data?.context) {
+                        setMetricsContext(data.context);
+                    }
+                })
+                .catch(err => console.error("Failed to load chat context:", err))
+                .finally(() => setIsLoadingContext(false));
+        }
+    }, [isOpen, metricsContext, isLoadingContext]);
     
     // Core chat states
     const [sessions, setSessions] = useState<ChatSession[]>([]);

@@ -1,28 +1,32 @@
 import { PrismaClient } from "@prisma/client";
-import { Pool } from "pg";
+import { Pool, PoolConfig } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-// PrismaClient is attached to the `global` object in development to prevent
-// exhausting your database connection limit.
-//
-// Learn more:
-// https://pris.ly/d/help/next-js-best-practices
+// Cache both PrismaClient and pg.Pool on globalThis to prevent connection leaks,
+// avoid cold-start TLS latency with Neon, and respect connection limits.
 
-const globalForPrisma = global as unknown as { prisma?: PrismaClient };
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+  pgPool?: Pool;
+};
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const poolConfig: PoolConfig = {
+  connectionString: process.env.DATABASE_URL,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+};
+
+const pool = globalForPrisma.pgPool ?? new Pool(poolConfig);
+globalForPrisma.pgPool = pool;
+
 const adapter = new PrismaPg(pool);
 
-// Force delete cached instance so it picks up the new schema
-delete globalForPrisma.prisma;
-
 export const prisma =
-  globalForPrisma.prisma ||
+  globalForPrisma.prisma ??
   new PrismaClient({
     adapter,
-    log: ['query', 'error', 'warn'],
+    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+globalForPrisma.prisma = prisma;

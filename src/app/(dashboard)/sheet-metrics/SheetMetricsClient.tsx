@@ -73,10 +73,12 @@ export default function SheetMetricsClient({ data, vendor }: { data: MetricsData
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      startTransition(() => {
-        router.refresh();
-      });
-    }, 60000); // Auto refresh every 60 seconds
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        startTransition(() => {
+          router.refresh();
+        });
+      }
+    }, 300000); // Auto refresh every 5 minutes only when active
     return () => clearInterval(intervalId);
   }, [router]);
 

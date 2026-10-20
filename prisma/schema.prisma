@@ -44,6 +44,9 @@ model User {
   settings_updated   AppSetting[]      @relation("SettingUpdater")
   ai_chat_sessions   AiChatSession[]
   followups          Followup[]
+
+  @@index([role_id])
+  @@index([deleted_at])
 }
 
 model Client {
@@ -69,6 +72,8 @@ model Client {
   deleted_at     DateTime?
 
   positions      Position[]
+
+  @@index([deleted_at, status])
 }
 
 model Position {
@@ -98,6 +103,10 @@ model Position {
   deleted_at            DateTime?
 
   closures              PositionClosure[]
+
+  @@index([client_id])
+  @@index([deleted_at, status])
+  @@index([priority])
 }
 
 model PositionClosure {
@@ -116,6 +125,9 @@ model PositionClosure {
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
   deleted_at      DateTime?
+
+  @@index([position_id])
+  @@index([deleted_at])
 }
 
 model AuditLog {
@@ -133,6 +145,9 @@ model AuditLog {
   ip_address  String?
   device_info String?
   timestamp   DateTime @default(now())
+
+  @@index([timestamp(sort: Desc)])
+  @@index([entity_type, entity_id])
 }
 
 model AppSetting {
@@ -165,6 +180,8 @@ model AiChatSession {
   created_at DateTime        @default(now())
   updated_at DateTime        @updatedAt
   messages   AiChatMessage[]
+
+  @@index([user_id])
 }
 
 model AiChatMessage {
@@ -174,6 +191,8 @@ model AiChatMessage {
   role       String        // "user" or "assistant"
   content    String        @db.Text
   created_at DateTime      @default(now())
+
+  @@index([session_id])
 }
 
 model Followup {
@@ -190,4 +209,8 @@ model Followup {
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
   deleted_at          DateTime?
+
+  @@index([deleted_at, followup_date])
+  @@index([status])
+  @@index([user_id])
 }

@@ -6,9 +6,7 @@ declare global {
 
 const cache: Record<string, { data: any, timestamp: number }> = globalThis.googleSheetsCache || {};
 
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.googleSheetsCache = cache;
-}
+globalThis.googleSheetsCache = cache;
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 

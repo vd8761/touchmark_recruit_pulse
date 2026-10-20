@@ -22,9 +22,7 @@ export const getPayrollDb = () => {
     keepAliveInitialDelay: 10000,
   });
 
-  if (process.env.NODE_ENV !== 'production') {
-    globalThis.payrollDbPool = newPool;
-  }
+  globalThis.payrollDbPool = newPool;
 
   return newPool;
 };
